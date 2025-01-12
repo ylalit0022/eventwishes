@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: eventwishes-backend
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: MONGODB_URI
+        sync: false # Will be set manually in Render dashboard
+      - key: NODE_ENV
+        value: production
