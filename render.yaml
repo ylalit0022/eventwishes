@@ -2,8 +2,9 @@ services:
   - type: web
     name: eventwishes-backend
     env: node
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && node server.js
+    region: singapore
+    buildCommand: npm install
+    startCommand: node server.js
     envVars:
       - key: PORT
         value: 3000
