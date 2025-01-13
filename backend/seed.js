@@ -22,7 +22,7 @@ const sampleTemplates = [
                 <p style="font-size: 1.1em; color: #666;">With love,<br>{{senderName}}</p>
             </div>
         `,
-        previewUrl: "https://i.imgur.com/birthday_preview.jpg"
+        previewUrl: "https://imgur.com/gallery/shouldnt-even-be-debate-this-stage-ttf8q4h"
     },
     {
         title: "Wedding Anniversary",

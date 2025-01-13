@@ -39,6 +39,126 @@ process.on('SIGINT', async () => {
 const Template = require('./models/template');
 const SharedWish = require('./models/sharedWish');
 
+// Serve static files
+app.use(express.static('public'));
+
+// HTML template for wish page
+const getWishPageHtml = (wish, previewImage) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${wish.recipientName}'s Special Wish from ${wish.senderName}</title>
+    
+    <!-- Open Graph meta tags for rich previews -->
+    <meta property="og:title" content="${wish.recipientName}'s Special Wish from ${wish.senderName}" />
+    <meta property="og:description" content="Click to view your personalized wish! 🎉✨" />
+    <meta property="og:image" content="${previewImage}" />
+    <meta property="og:url" content="${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/wish/${wish.shortCode}" />
+    <meta property="og:type" content="website" />
+    
+    <!-- Twitter Card meta tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${wish.recipientName}'s Special Wish from ${wish.senderName}" />
+    <meta name="twitter:description" content="Click to view your personalized wish! 🎉✨" />
+    <meta name="twitter:image" content="${previewImage}" />
+    
+    <!-- Additional meta tags -->
+    <meta name="description" content="A special wish created for ${wish.recipientName} from ${wish.senderName}. Open to view your personalized message!" />
+    <meta name="theme-color" content="#ff4081" />
+    
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 16px;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+        .app-promo {
+            margin-top: 24px;
+            text-align: center;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .download-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #ff4081;
+            color: white;
+            text-decoration: none;
+            border-radius: 24px;
+            margin-top: 12px;
+            font-weight: bold;
+        }
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #121212; }
+            .content { background: #1e1e1e; color: #ffffff; }
+            .app-promo { background: #2d2d2d; }
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        ${wish.customizedHtml}
+        <div class="app-promo">
+            <p>Create your own special wishes with Event Wishes app!</p>
+            <a href="https://play.google.com/store/apps/details?id=com.ds.eventwishes" class="download-btn">
+                Get the App
+            </a>
+        </div>
+    </div>
+</body>
+</html>`;
+
+// Serve wish page
+app.get('/wish/:shortCode', async (req, res) => {
+    try {
+        const wish = await SharedWish.findOne({ shortCode: req.params.shortCode })
+            .populate('templateId');
+
+        if (!wish) {
+            return res.status(404).send('Wish not found');
+        }
+
+        // Update view count
+        wish.views += 1;
+        wish.lastViewedAt = new Date();
+        await wish.save();
+
+        // Get preview image from template or use default
+        const previewImage = wish.templateId.previewUrl || `${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/images/default-preview.jpg`;
+
+        // Send HTML page with meta tags
+        res.send(getWishPageHtml(wish, previewImage));
+    } catch (error) {
+        console.error('Error serving wish page:', error);
+        res.status(500).send('Error loading wish');
+    }
+});
+
 // API Routes for templates
 app.get('/api/templates', async (req, res) => {
     try {

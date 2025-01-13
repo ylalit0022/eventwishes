@@ -11,6 +11,7 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.annotation.NonNull;
@@ -77,8 +78,49 @@ public class ScriptEditorFragment extends Fragment {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.GONE);
             }
+
+            @Override
+            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                android.util.Log.e("ScriptEditor", "WebView error: " + description);
+                super.onReceivedError(view, errorCode, description, failingUrl);
+            }
         });
-        webView.getSettings().setJavaScriptEnabled(true);
+
+        WebSettings settings = webView.getSettings();
+        
+        // Enable JavaScript
+        settings.setJavaScriptEnabled(true);
+        
+        // Enable DOM storage
+        settings.setDomStorageEnabled(true);
+        
+        // Enable mixed content and hardware acceleration
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        
+        // Enable support for images
+        settings.setLoadsImagesAutomatically(true);
+        settings.setBlockNetworkImage(false);
+        
+        // Enable caching
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        
+        // Enable zooming
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
+        settings.setDisplayZoomControls(false);
+        
+        // Additional optimizations
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+        settings.setLoadWithOverviewMode(true);
+        settings.setUseWideViewPort(true);
+        settings.setDefaultTextEncodingName("UTF-8");
+        
+        // Enable better rendering
+        settings.setRenderPriority(WebSettings.RenderPriority.HIGH);
+        settings.setEnableSmoothTransition(true);
+        
         loadPreview();
     }
     
@@ -103,16 +145,61 @@ public class ScriptEditorFragment extends Fragment {
     private void loadPreview() {
         if (htmlContent == null) return;
         
-        String recipient = recipientInput.getText() != null ? recipientInput.getText().toString() : "";
-        String sender = senderInput.getText() != null ? senderInput.getText().toString() : "";
-        
-        // Replace placeholders in HTML content
-        String previewContent = htmlContent
-            .replace("{{recipientName}}", recipient)
-            .replace("{{senderName}}", sender);
+        try {
+            String recipient = recipientInput.getText() != null ? recipientInput.getText().toString().trim() : "";
+            String sender = senderInput.getText() != null ? senderInput.getText().toString().trim() : "";
             
-        progressBar.setVisibility(View.VISIBLE);
-        webView.loadDataWithBaseURL(null, previewContent, "text/html", "UTF-8", null);
+            String customizedHtml = htmlContent
+                .replace("{{recipientName}}", recipient)
+                .replace("{{senderName}}", sender);
+            
+            // Wrap the HTML content with proper viewport meta tag and image handling
+            String wrappedHtml = "<!DOCTYPE html>" +
+                "<html>" +
+                "<head>" +
+                    "<meta charset='UTF-8'>" +
+                    "<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>" +
+                    "<style>" +
+                        "* { box-sizing: border-box; }" +
+                        "html, body { margin: 0; padding: 0; width: 100%; height: 100%; }" +
+                        "body { padding: 16px; font-family: Arial, sans-serif; line-height: 1.6; }" +
+                        "img { max-width: 100%; width: auto; height: auto; display: block; margin: 0 auto; object-fit: contain; }" +
+                        ".content { max-width: 800px; margin: 0 auto; }" +
+                        "@media (prefers-color-scheme: dark) {" +
+                            "body { background-color: #121212; color: #ffffff; }" +
+                        "}" +
+                        "@media screen and (min-width: 768px) {" +
+                            "body { padding: 32px; }" +
+                            "img { max-height: 80vh; }" +
+                        "}" +
+                    "</style>" +
+                "</head>" +
+                "<body>" +
+                    "<div class='content'>" +
+                        customizedHtml +
+                    "</div>" +
+                    "<script>" +
+                        "document.addEventListener('DOMContentLoaded', function() {" +
+                            "var images = document.getElementsByTagName('img');" +
+                            "for(var i = 0; i < images.length; i++) {" +
+                                "images[i].onerror = function() { this.style.display = 'none'; };" +
+                            "}" +
+                        "});" +
+                    "</script>" +
+                "</body>" +
+                "</html>";
+
+            progressBar.setVisibility(View.VISIBLE);
+            webView.loadDataWithBaseURL(
+                null,
+                wrappedHtml,
+                "text/html",
+                "UTF-8",
+                null
+            );
+        } catch (Exception e) {
+            android.util.Log.e("ScriptEditor", "Error loading preview", e);
+        }
     }
     
     private void setupShareButton(View root) {
@@ -173,10 +260,6 @@ public class ScriptEditorFragment extends Fragment {
             String recipient = recipientInput.getText() != null ? recipientInput.getText().toString().trim() : "";
             String sender = senderInput.getText() != null ? senderInput.getText().toString().trim() : "";
             
-            android.util.Log.d("ScriptEditor", "Sharing - templateId: " + templateId);
-            android.util.Log.d("ScriptEditor", "Sharing - recipient: " + recipient);
-            android.util.Log.d("ScriptEditor", "Sharing - sender: " + sender);
-            
             // Validate inputs
             if (recipient.isEmpty() || sender.isEmpty()) {
                 Snackbar.make(requireView(), R.string.please_enter_names, Snackbar.LENGTH_SHORT).show();
@@ -191,13 +274,8 @@ public class ScriptEditorFragment extends Fragment {
             // Show loading indicator
             progressBar.setVisibility(View.VISIBLE);
             
-            // Replace placeholders in HTML content
-            String customizedHtml = htmlContent
-                .replace("{{recipientName}}", recipient)
-                .replace("{{senderName}}", sender);
-            
             // Create share URL with the wish content
-            ShareRequest request = new ShareRequest(templateId, recipient, sender, customizedHtml);
+            ShareRequest request = new ShareRequest(templateId, recipient, sender, htmlContent);
             ApiClient.getInstance().createShareLink(request).enqueue(new Callback<ShareResponse>() {
                 @Override
                 public void onResponse(@NonNull Call<ShareResponse> call, @NonNull Response<ShareResponse> response) {
@@ -205,19 +283,32 @@ public class ScriptEditorFragment extends Fragment {
                     
                     if (response.isSuccessful() && response.body() != null) {
                         String shareUrl = response.body().getShareUrl();
-                        String shareText = String.format("%s\n\nTo: %s\nFrom: %s\n\nView your wish here:\n%s",
-                            getString(R.string.share_message),
+                        String playStoreUrl = "https://play.google.com/store/apps/details?id=" + requireContext().getPackageName();
+                        
+                        String shareText = String.format("🎉 Special Wish for you!\n\n" +
+                            "To: %s\n" +
+                            "From: %s\n\n" +
+                            "View your personalized wish here:\n%s\n\n" +
+                            "Don't have the app? Get it here:\n%s",
                             recipient,
                             sender,
-                            shareUrl);
+                            shareUrl,
+                            playStoreUrl);
                             
                         try {
                             Intent intent = new Intent(Intent.ACTION_SEND);
                             intent.setType("text/plain");
                             intent.setPackage("com.whatsapp");
                             intent.putExtra(Intent.EXTRA_TEXT, shareText);
-                            startActivity(intent);
-                            analyticsManager.logShare("whatsapp");
+                            
+                            // Try to start WhatsApp
+                            try {
+                                startActivity(intent);
+                                analyticsManager.logShare("whatsapp");
+                            } catch (android.content.ActivityNotFoundException e) {
+                                // WhatsApp not installed, open Play Store
+                                openPlayStore("com.whatsapp");
+                            }
                         } catch (Exception e) {
                             android.util.Log.e("ScriptEditor", "WhatsApp share error", e);
                             Snackbar.make(requireView(), R.string.whatsapp_not_installed, Snackbar.LENGTH_SHORT).show();
@@ -247,6 +338,19 @@ public class ScriptEditorFragment extends Fragment {
             android.util.Log.e("ScriptEditor", "Share general error", e);
             progressBar.setVisibility(View.GONE);
             Snackbar.make(requireView(), R.string.share_error, Snackbar.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openPlayStore(String packageName) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setData(Uri.parse("market://details?id=" + packageName));
+            startActivity(intent);
+        } catch (android.content.ActivityNotFoundException e) {
+            // Play Store app not installed, open web browser
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setData(Uri.parse("https://play.google.com/store/apps/details?id=" + packageName));
+            startActivity(intent);
         }
     }
     
