@@ -57,6 +57,10 @@ public class ScriptEditorFragment extends Fragment {
         if (getArguments() != null) {
             templateId = getArguments().getString("templateId");
             htmlContent = getArguments().getString("htmlContent");
+            android.util.Log.d("ScriptEditor", "Received templateId: " + templateId);
+            android.util.Log.d("ScriptEditor", "Received htmlContent: " + (htmlContent != null ? "not null" : "null"));
+        } else {
+            android.util.Log.e("ScriptEditor", "No arguments received");
         }
         
         setupWebView();
@@ -169,6 +173,10 @@ public class ScriptEditorFragment extends Fragment {
             String recipient = recipientInput.getText() != null ? recipientInput.getText().toString().trim() : "";
             String sender = senderInput.getText() != null ? senderInput.getText().toString().trim() : "";
             
+            android.util.Log.d("ScriptEditor", "Sharing - templateId: " + templateId);
+            android.util.Log.d("ScriptEditor", "Sharing - recipient: " + recipient);
+            android.util.Log.d("ScriptEditor", "Sharing - sender: " + sender);
+            
             // Validate inputs
             if (recipient.isEmpty() || sender.isEmpty()) {
                 Snackbar.make(requireView(), R.string.please_enter_names, Snackbar.LENGTH_SHORT).show();
@@ -211,6 +219,7 @@ public class ScriptEditorFragment extends Fragment {
                             startActivity(intent);
                             analyticsManager.logShare("whatsapp");
                         } catch (Exception e) {
+                            android.util.Log.e("ScriptEditor", "WhatsApp share error", e);
                             Snackbar.make(requireView(), R.string.whatsapp_not_installed, Snackbar.LENGTH_SHORT).show();
                         }
                     } else {
@@ -218,6 +227,7 @@ public class ScriptEditorFragment extends Fragment {
                         if (response.errorBody() != null) {
                             try {
                                 errorMessage = response.errorBody().string();
+                                android.util.Log.e("ScriptEditor", "Share error: " + errorMessage);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -228,11 +238,13 @@ public class ScriptEditorFragment extends Fragment {
 
                 @Override
                 public void onFailure(@NonNull Call<ShareResponse> call, @NonNull Throwable t) {
+                    android.util.Log.e("ScriptEditor", "Share network error", t);
                     progressBar.setVisibility(View.GONE);
                     Snackbar.make(requireView(), R.string.share_error, Snackbar.LENGTH_SHORT).show();
                 }
             });
         } catch (Exception e) {
+            android.util.Log.e("ScriptEditor", "Share general error", e);
             progressBar.setVisibility(View.GONE);
             Snackbar.make(requireView(), R.string.share_error, Snackbar.LENGTH_SHORT).show();
         }

@@ -55,7 +55,7 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
     @Override
     public void onTemplateClick(Template template) {
         Bundle args = new Bundle();
-        args.putString("wishId", template.getId());
+        args.putString("templateId", template.getId());
         args.putString("htmlContent", template.getHtmlContent());
         Navigation.findNavController(requireView())
                 .navigate(R.id.action_home_to_editor, args);
