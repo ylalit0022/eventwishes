@@ -45,16 +45,14 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-// Import models
-const Template = require('./models/template.js');
-const SharedWish = require('./models/sharedWish.js');
-
-// Serve static files
-app.use(express.static('public'));
-
 // HTML template for wish page
-const getWishPageHtml = (wish, previewImage) => `
-<!DOCTYPE html>
+const getWishPageHtml = (wish, previewImage) => {
+    // Replace template variables in customizedHtml
+    const customizedContent = wish.customizedHtml
+        .replace(/{{recipientName}}/g, wish.recipientName)
+        .replace(/{{senderName}}/g, wish.senderName);
+
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -93,6 +91,7 @@ const getWishPageHtml = (wish, previewImage) => `
         }
         .content {
             max-width: 800px;
+            width: 100%;
             margin: 0 auto;
             background: white;
             padding: 24px;
@@ -132,7 +131,7 @@ const getWishPageHtml = (wish, previewImage) => `
 </head>
 <body>
     <div class="content">
-        ${wish.customizedHtml}
+        ${customizedContent}
         <div class="app-promo">
             <p>Create your own special wishes with Event Wishes app!</p>
             <a href="https://play.google.com/store/apps/details?id=com.ds.eventwishes" class="download-btn">
@@ -142,6 +141,14 @@ const getWishPageHtml = (wish, previewImage) => `
     </div>
 </body>
 </html>`;
+};
+
+// Import models
+const Template = require('./models/template.js');
+const SharedWish = require('./models/sharedWish.js');
+
+// Serve static files
+app.use(express.static('public'));
 
 // Serve wish page
 app.get('/wish/:shortCode', async (req, res) => {
