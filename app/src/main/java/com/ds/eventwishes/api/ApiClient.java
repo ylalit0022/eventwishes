@@ -5,6 +5,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+import java.util.concurrent.TimeUnit;
 
 public class ApiClient {
     private static ApiService instance;
@@ -16,15 +17,17 @@ public class ApiClient {
             logging.setLevel(BuildConfig.DEBUG ? 
                 HttpLoggingInterceptor.Level.BODY : HttpLoggingInterceptor.Level.NONE);
 
-            // Create OkHttp Client
-            OkHttpClient client = new OkHttpClient.Builder()
+            // Create OkHttp Client with longer timeouts for development
+            OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder()
                 .addInterceptor(logging)
-                .build();
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS);
 
             // Create Retrofit instance
             Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(BuildConfig.BASE_URL)
-                .client(client)
+                .client(clientBuilder.build())
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 

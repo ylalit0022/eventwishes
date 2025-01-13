@@ -17,13 +17,13 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField "String", "BASE_URL", "\"http://10.0.2.2:3000/\""
+            buildConfigField "String", "BASE_URL", "\"https://eventwishes.onrender.com/\""
         }
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            buildConfigField "String", "BASE_URL", "\"https://eventwishes-backend.onrender.com/\""
+            buildConfigField "String", "BASE_URL", "\"https://eventwishes.onrender.com/\""
         }
     }
     
@@ -60,10 +60,14 @@ dependencies {
 
     // Image Loading
     implementation 'com.github.bumptech.glide:glide:4.16.0'
+    implementation libs.play.services.measurement.api
+    implementation libs.room.common
+    implementation libs.room.runtime
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
 
     // Testing
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
+    annotationProcessor libs.room.compiler
 }

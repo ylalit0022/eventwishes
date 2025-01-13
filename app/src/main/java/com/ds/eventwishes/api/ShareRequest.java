@@ -12,10 +12,20 @@ public class ShareRequest {
     @SerializedName("senderName")
     private String senderName;
 
+    @SerializedName("htmlContent")
+    private String htmlContent;
+
     public ShareRequest(String templateId, String recipientName, String senderName) {
         this.templateId = templateId;
         this.recipientName = recipientName;
         this.senderName = senderName;
+    }
+
+    public ShareRequest(String templateId, String recipientName, String senderName, String htmlContent) {
+        this.templateId = templateId;
+        this.recipientName = recipientName;
+        this.senderName = senderName;
+        this.htmlContent = htmlContent;
     }
 
     // Getters and Setters
@@ -41,5 +51,13 @@ public class ShareRequest {
 
     public void setSenderName(String senderName) {
         this.senderName = senderName;
+    }
+
+    public String getHtmlContent() {
+        return htmlContent;
+    }
+
+    public void setHtmlContent(String htmlContent) {
+        this.htmlContent = htmlContent;
     }
 }

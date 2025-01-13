@@ -22,6 +22,13 @@
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/emptyView"
         android:layout_width="match_parent"
@@ -51,7 +58,8 @@
         android:layout_height="match_parent"
         android:gravity="center"
         android:orientation="vertical"
-        android:visibility="gone">
+        android:visibility="gone"
+        android:padding="16dp">
 
         <ImageView
             android:layout_width="120dp"
@@ -60,17 +68,20 @@
             android:contentDescription="@string/error_loading" />
 
         <TextView
+            android:id="@+id/errorText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/error_loading"
-            android:textAppearance="?attr/textAppearanceHeadline6" />
+            android:gravity="center"
+            android:textAlignment="center"
+            android:textAppearance="?attr/textAppearanceBody1"
+            tools:text="Error message will appear here" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/retryButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="16dp"
             android:text="@string/retry" />
 
     </LinearLayout>

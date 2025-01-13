@@ -28,80 +28,28 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
     public View onCreateView(@NonNull LayoutInflater inflater,
                            ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
+        
+        setupRecyclerView();
+        setupSwipeRefresh();
+        setupRetryButton();
+        
+        fetchTemplates();
+        
         return binding.getRoot();
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        
-        // Setup RecyclerView
-        adapter = new TemplateAdapter(new ArrayList<>(), this);
-        binding.recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+    private void setupRecyclerView() {
+        adapter = new TemplateAdapter(requireContext(), new ArrayList<>(), this);
         binding.recyclerView.setAdapter(adapter);
-        
-        // Setup SwipeRefreshLayout
-        binding.swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                loadTemplates();
-            }
-        });
-        
-        // Setup retry button
-        binding.retryButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                loadTemplates();
-            }
-        });
-        
-        // Initial load
-        loadTemplates();
+        binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
     }
 
-    private void loadTemplates() {
-        binding.swipeRefresh.setRefreshing(true);
-        binding.errorView.setVisibility(View.GONE);
-        
-        ApiClient.getInstance().getTemplates().enqueue(new Callback<List<Template>>() {
-            @Override
-            public void onResponse(Call<List<Template>> call, Response<List<Template>> response) {
-                if (!isAdded()) return; // Check if fragment is still attached
-                
-                binding.swipeRefresh.setRefreshing(false);
-                
-                if (response.isSuccessful() && response.body() != null) {
-                    List<Template> templates = response.body();
-                    adapter.updateTemplates(templates);
-                    
-                    // Show empty state if no templates
-                    if (templates.isEmpty()) {
-                        binding.emptyView.setVisibility(View.VISIBLE);
-                        binding.recyclerView.setVisibility(View.GONE);
-                    } else {
-                        binding.emptyView.setVisibility(View.GONE);
-                        binding.recyclerView.setVisibility(View.VISIBLE);
-                    }
-                } else {
-                    showError();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<Template>> call, Throwable t) {
-                if (!isAdded()) return; // Check if fragment is still attached
-                
-                binding.swipeRefresh.setRefreshing(false);
-                showError();
-            }
-        });
+    private void setupSwipeRefresh() {
+        binding.swipeRefresh.setOnRefreshListener(this::fetchTemplates);
     }
 
-    private void showError() {
-        binding.errorView.setVisibility(View.VISIBLE);
-        binding.recyclerView.setVisibility(View.GONE);
-        Snackbar.make(binding.getRoot(), R.string.error_loading, Snackbar.LENGTH_LONG).show();
+    private void setupRetryButton() {
+        binding.retryButton.setOnClickListener(v -> fetchTemplates());
     }
 
     @Override
@@ -111,6 +59,58 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
         args.putString("htmlContent", template.getHtmlContent());
         Navigation.findNavController(requireView())
                 .navigate(R.id.action_home_to_editor, args);
+    }
+
+    private void fetchTemplates() {
+        binding.swipeRefresh.setRefreshing(true);
+        binding.progressBar.setVisibility(View.VISIBLE);
+        binding.errorView.setVisibility(View.GONE);
+
+        ApiClient.getInstance().getTemplates().enqueue(new Callback<List<Template>>() {
+            @Override
+            public void onResponse(@NonNull Call<List<Template>> call, @NonNull Response<List<Template>> response) {
+                binding.swipeRefresh.setRefreshing(false);
+                binding.progressBar.setVisibility(View.GONE);
+
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Template> templates = response.body();
+                    adapter.updateTemplates(templates);
+                    if (templates.isEmpty()) {
+                        binding.emptyView.setVisibility(View.VISIBLE);
+                        binding.recyclerView.setVisibility(View.GONE);
+                    } else {
+                        binding.emptyView.setVisibility(View.GONE);
+                        binding.recyclerView.setVisibility(View.VISIBLE);
+                    }
+                } else {
+                    String errorMessage = "Error: " + response.code();
+                    try {
+                        if (response.errorBody() != null) {
+                            errorMessage += " - " + response.errorBody().string();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    showError(errorMessage);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<List<Template>> call, @NonNull Throwable t) {
+                binding.swipeRefresh.setRefreshing(false);
+                binding.progressBar.setVisibility(View.GONE);
+                showError("Network error: " + t.getMessage());
+                t.printStackTrace();
+            }
+        });
+    }
+
+    private void showError(String message) {
+        binding.recyclerView.setVisibility(View.GONE);
+        binding.emptyView.setVisibility(View.GONE);
+        binding.errorView.setVisibility(View.VISIBLE);
+        binding.errorText.setText(message);
+        Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).show();
     }
 
     @Override

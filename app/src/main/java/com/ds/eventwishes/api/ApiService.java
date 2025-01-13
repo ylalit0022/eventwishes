@@ -22,4 +22,7 @@ public interface ApiService {
 
     @POST("api/share")
     Call<ShareResponse> createShareLink(@Body ShareRequest request);
+
+    @GET("api/share/{shortCode}")
+    Call<SharedWish> getSharedWish(@Path("shortCode") String shortCode);
 }
