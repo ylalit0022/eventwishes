@@ -12,14 +12,20 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Atlas connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@eventwishes.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.mongodb.net/eventwishes?retryWrites=true&w=majority';
 
-mongoose.connect(MONGODB_URI)
-    .then(() => console.log('Successfully connected to MongoDB Atlas'))
-    .catch(err => {
-        console.error('MongoDB connection error:', err);
-        process.exit(1);
-    });
+mongoose.connect(MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000,
+    retryWrites: true,
+    w: 'majority'
+})
+.then(() => console.log('Successfully connected to MongoDB Atlas'))
+.catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+});
 
 // Handle MongoDB connection events
 mongoose.connection.on('error', err => {
@@ -53,7 +59,7 @@ const getWishPageHtml = (wish, previewImage) => `
     
     <!-- Open Graph meta tags for rich previews -->
     <meta property="og:title" content="${wish.recipientName}'s Special Wish from ${wish.senderName}" />
-    <meta property="og:description" content="Click to view your personalized wish! 🎉✨" />
+    <meta property="og:description" content="Click to view your personalized wish! " />
     <meta property="og:image" content="${previewImage}" />
     <meta property="og:url" content="${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/wish/${wish.shortCode}" />
     <meta property="og:type" content="website" />
@@ -61,7 +67,7 @@ const getWishPageHtml = (wish, previewImage) => `
     <!-- Twitter Card meta tags -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${wish.recipientName}'s Special Wish from ${wish.senderName}" />
-    <meta name="twitter:description" content="Click to view your personalized wish! 🎉✨" />
+    <meta name="twitter:description" content="Click to view your personalized wish! " />
     <meta name="twitter:image" content="${previewImage}" />
     
     <!-- Additional meta tags -->

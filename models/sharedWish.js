@@ -29,7 +29,7 @@ const sharedWishSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
-        expires: 7776000 // 90 days in seconds
+        index: { expires: 7776000 } // 90 days in seconds
     },
     views: {
         type: Number,
@@ -39,8 +39,5 @@ const sharedWishSchema = new mongoose.Schema({
         type: Date
     }
 });
-
-// Index for cleanup of old wishes
-sharedWishSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
 
 module.exports = mongoose.model('SharedWish', sharedWishSchema);
