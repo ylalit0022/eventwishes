@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Atlas connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.mongodb.net/eventwishes?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@eventwishes.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
 
 mongoose.connect(MONGODB_URI, {
     serverSelectionTimeoutMS: 5000,
