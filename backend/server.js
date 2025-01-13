@@ -12,18 +12,24 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Atlas connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.mongodb.net/eventwishes?retryWrites=true&w=majority';
+const uri = 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
 
-mongoose.connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000,
-    retryWrites: true,
-    w: 'majority'
-})
-.then(() => console.log('Successfully connected to MongoDB Atlas'))
-.catch(err => {
+console.log('Attempting to connect to MongoDB...');
+
+// Connect to MongoDB before starting the server
+mongoose.connect(uri)
+  .then(() => {
+    console.log('Successfully connected to MongoDB Atlas!');
+    
+    // Only start the server after successful database connection
+    app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+    });
+  })
+  .catch(err => {
     console.error('MongoDB connection error:', err);
     process.exit(1);
-});
+  });
 
 // Handle MongoDB connection events
 mongoose.connection.on('error', err => {
@@ -280,9 +286,4 @@ app.get('/api/wish/:shortCode', async (req, res) => {
         console.error('Error fetching shared wish:', error);
         res.status(500).json({ error: 'Failed to get shared wish' });
     }
-});
-
-// Start server
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
 });
