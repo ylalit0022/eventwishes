@@ -12,13 +12,13 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Atlas connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@eventwishes.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
 
 mongoose.connect(MONGODB_URI)
     .then(() => console.log('Successfully connected to MongoDB Atlas'))
     .catch(err => {
         console.error('MongoDB connection error:', err);
-        process.exit(1); // Exit if cannot connect to database
+        process.exit(1);
     });
 
 // Handle MongoDB connection events
@@ -35,38 +35,131 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-// Template Schema
-const templateSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    category: { type: String, required: true },
-    htmlContent: { type: String, required: true },
-    previewUrl: { type: String },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
+// Import models
+const Template = require('./models/template');
+const SharedWish = require('./models/sharedWish');
+
+// Serve static files
+app.use(express.static('public'));
+
+// HTML template for wish page
+const getWishPageHtml = (wish, previewImage) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${wish.recipientName}'s Special Wish from ${wish.senderName}</title>
+    
+    <!-- Open Graph meta tags for rich previews -->
+    <meta property="og:title" content="${wish.recipientName}'s Special Wish from ${wish.senderName}" />
+    <meta property="og:description" content="Click to view your personalized wish! 🎉✨" />
+    <meta property="og:image" content="${previewImage}" />
+    <meta property="og:url" content="${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/wish/${wish.shortCode}" />
+    <meta property="og:type" content="website" />
+    
+    <!-- Twitter Card meta tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${wish.recipientName}'s Special Wish from ${wish.senderName}" />
+    <meta name="twitter:description" content="Click to view your personalized wish! 🎉✨" />
+    <meta name="twitter:image" content="${previewImage}" />
+    
+    <!-- Additional meta tags -->
+    <meta name="description" content="A special wish created for ${wish.recipientName} from ${wish.senderName}. Open to view your personalized message!" />
+    <meta name="theme-color" content="#ff4081" />
+    
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 16px;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+        .app-promo {
+            margin-top: 24px;
+            text-align: center;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .download-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #ff4081;
+            color: white;
+            text-decoration: none;
+            border-radius: 24px;
+            margin-top: 12px;
+            font-weight: bold;
+        }
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #121212; }
+            .content { background: #1e1e1e; color: #ffffff; }
+            .app-promo { background: #2d2d2d; }
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        ${wish.customizedHtml}
+        <div class="app-promo">
+            <p>Create your own special wishes with Event Wishes app!</p>
+            <a href="https://play.google.com/store/apps/details?id=com.ds.eventwishes" class="download-btn">
+                Get the App
+            </a>
+        </div>
+    </div>
+</body>
+</html>`;
+
+// Serve wish page
+app.get('/wish/:shortCode', async (req, res) => {
+    try {
+        const wish = await SharedWish.findOne({ shortCode: req.params.shortCode })
+            .populate('templateId');
+
+        if (!wish) {
+            return res.status(404).send('Wish not found');
+        }
+
+        // Update view count
+        wish.views += 1;
+        wish.lastViewedAt = new Date();
+        await wish.save();
+
+        // Get preview image from template or use default
+        const previewImage = wish.templateId.previewUrl || `${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/images/default-preview.jpg`;
+
+        // Send HTML page with meta tags
+        res.send(getWishPageHtml(wish, previewImage));
+    } catch (error) {
+        console.error('Error serving wish page:', error);
+        res.status(500).send('Error loading wish');
+    }
 });
 
-templateSchema.pre('save', function(next) {
-    this.updatedAt = Date.now();
-    next();
-});
-
-const Template = mongoose.model('Template', templateSchema);
-
-// Shared Wish Schema
-const sharedWishSchema = new mongoose.Schema({
-    shortCode: { type: String, required: true },
-    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', required: true },
-    recipientName: { type: String, required: true },
-    senderName: { type: String, required: true },
-    customizedHtml: { type: String, required: true },
-    views: { type: Number, default: 0 },
-    lastViewedAt: { type: Date },
-    createdAt: { type: Date, default: Date.now }
-});
-
-const SharedWish = mongoose.model('SharedWish', sharedWishSchema);
-
-// API Routes
+// API Routes for templates
 app.get('/api/templates', async (req, res) => {
     try {
         const templates = await Template.find().sort({ updatedAt: -1 });
@@ -91,210 +184,86 @@ app.get('/api/templates/:id', async (req, res) => {
     }
 });
 
-app.post('/api/templates', async (req, res) => {
-    const template = new Template({
-        title: req.body.title,
-        category: req.body.category,
-        htmlContent: req.body.htmlContent,
-        previewUrl: req.body.previewUrl
-    });
-
-    try {
-        const newTemplate = await template.save();
-        res.status(201).json(newTemplate);
-    } catch (error) {
-        console.error('Error creating template:', error);
-        res.status(400).json({ message: error.message });
-    }
-});
-
-app.put('/api/templates/:id', async (req, res) => {
-    try {
-        const template = await Template.findByIdAndUpdate(
-            req.params.id,
-            {
-                ...req.body,
-                updatedAt: Date.now()
-            },
-            { new: true }
-        );
-        
-        if (template) {
-            res.json(template);
-        } else {
-            res.status(404).json({ message: 'Template not found' });
-        }
-    } catch (error) {
-        console.error('Error updating template:', error);
-        res.status(400).json({ message: error.message });
-    }
-});
-
-app.delete('/api/templates/:id', async (req, res) => {
-    try {
-        const template = await Template.findByIdAndDelete(req.params.id);
-        if (template) {
-            res.json({ message: 'Template deleted successfully' });
-        } else {
-            res.status(404).json({ message: 'Template not found' });
-        }
-    } catch (error) {
-        console.error('Error deleting template:', error);
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// Share endpoint
+// Share API endpoint
 app.post('/api/share', async (req, res) => {
     try {
-        const { templateId, recipientName, senderName } = req.body;
-        
-        // Input validation
-        if (!templateId || !recipientName || !senderName) {
-            return res.status(400).json({ message: 'Missing required fields' });
+        const { templateId, recipientName, senderName, htmlContent } = req.body;
+        console.log('Share request:', { templateId, recipientName, senderName, htmlContent: !!htmlContent });
+
+        // Validate required fields
+        const missingFields = [];
+        if (!templateId) missingFields.push('templateId');
+        if (!recipientName) missingFields.push('recipientName');
+        if (!senderName) missingFields.push('senderName');
+        if (!htmlContent) missingFields.push('htmlContent');
+
+        if (missingFields.length > 0) {
+            return res.status(400).json({ 
+                error: 'Missing required fields',
+                missingFields,
+                received: { templateId, recipientName, senderName, hasHtml: !!htmlContent }
+            });
         }
 
-        // Get the template
+        // Validate templateId format
+        if (!mongoose.Types.ObjectId.isValid(templateId)) {
+            return res.status(400).json({
+                error: 'Invalid templateId format',
+                received: templateId
+            });
+        }
+
+        // Check if template exists
         const template = await Template.findById(templateId);
         if (!template) {
-            return res.status(404).json({ message: 'Template not found' });
+            return res.status(404).json({
+                error: 'Template not found',
+                templateId
+            });
         }
 
         // Generate unique short code
         const shortCode = shortid.generate();
 
-        // Replace placeholders in HTML content
-        const customizedHtml = template.htmlContent
-            .replace(/\{\{recipientName\}\}/g, recipientName)
-            .replace(/\{\{senderName\}\}/g, senderName);
-
-        // Generate social media preview HTML
-        const socialPreviewHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta property="og:title" content="${template.title} - From ${senderName} to ${recipientName}">
-    <meta property="og:description" content="A special wish from ${senderName} to ${recipientName}">
-    <meta property="og:image" content="${template.previewUrl}">
-    <meta property="og:url" content="${process.env.PRODUCTION_URL || 'https://eventwishes.onrender.com'}/share/${shortCode}">
-    <meta property="og:type" content="website">
-    <meta name="twitter:card" content="summary_large_image">
-    <title>${template.title} - From ${senderName} to ${recipientName}</title>
-    <style>
-        body { 
-            margin: 0; 
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #6e8efb, #ff6b6b);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .wish-container {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            max-width: 600px;
-            width: 90%;
-            text-align: center;
-        }
-        .preview-image {
-            max-width: 100%;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-        .names {
-            font-size: 1.2em;
-            color: #666;
-            margin: 15px 0;
-        }
-    </style>
-</head>
-<body>
-    <div class="wish-container">
-        <img class="preview-image" src="${template.previewUrl}" alt="Wish Preview">
-        ${customizedHtml}
-        <div class="names">
-            From: ${senderName}<br>
-            To: ${recipientName}
-        </div>
-    </div>
-</body>
-</html>`;
-
-        // Create shared wish record
+        // Create shared wish
         const sharedWish = new SharedWish({
             shortCode,
             templateId,
-            recipientName,
-            senderName,
-            customizedHtml: socialPreviewHtml
+            recipientName: recipientName.trim(),
+            senderName: senderName.trim(),
+            customizedHtml: htmlContent,
+            createdAt: new Date()
         });
-        
+
         await sharedWish.save();
 
-        // Production base URL
-        const baseUrl = process.env.PRODUCTION_URL || 'https://eventwishes.onrender.com';
-        const shareUrl = `${baseUrl}/share/${shortCode}`;
-        
+        // Generate share URL
+        const baseUrl = process.env.BASE_URL || 'https://eventwishes.onrender.com';
+        const shareUrl = `${baseUrl}/wish/${shortCode}`;
+
         res.json({
             shareUrl,
-            shortUrl: shareUrl,
-            previewContent: customizedHtml,
-            socialPreviewHtml
+            shortCode,
+            message: 'Wish shared successfully'
         });
     } catch (error) {
-        console.error('Error creating share link:', error);
-        res.status(500).json({ message: error.message });
+        console.error('Share error:', error);
+        res.status(500).json({ 
+            error: 'Failed to create share link',
+            details: error.message,
+            type: error.name
+        });
     }
 });
 
-// Get shared wish endpoint
-app.get('/api/share/:shortCode', async (req, res) => {
+// Get shared wish
+app.get('/api/wish/:shortCode', async (req, res) => {
     try {
-        const { shortCode } = req.params;
-        
-        const sharedWish = await SharedWish.findOne({ shortCode })
-            .populate('templateId', 'title category');
-
-        if (!sharedWish) {
-            return res.status(404).json({ message: 'Shared wish not found or expired' });
-        }
-
-        // Update view count and last viewed timestamp
-        sharedWish.views += 1;
-        sharedWish.lastViewedAt = new Date();
-        await sharedWish.save();
-
-        res.json({
-            id: sharedWish._id,
-            shortCode: sharedWish.shortCode,
-            template: sharedWish.templateId,
-            recipientName: sharedWish.recipientName,
-            senderName: sharedWish.senderName,
-            customizedHtml: sharedWish.customizedHtml,
-            views: sharedWish.views,
-            createdAt: sharedWish.createdAt,
-            lastViewedAt: sharedWish.lastViewedAt
-        });
-    } catch (error) {
-        console.error('Error fetching shared wish:', error);
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// Serve shared wish page
-app.get('/share/:shortCode', async (req, res) => {
-    try {
-        const { shortCode } = req.params;
-        
-        const sharedWish = await SharedWish.findOne({ shortCode })
+        const sharedWish = await SharedWish.findOne({ shortCode: req.params.shortCode })
             .populate('templateId');
 
         if (!sharedWish) {
-            return res.status(404).send('Wish not found or has expired');
+            return res.status(404).json({ error: 'Shared wish not found' });
         }
 
         // Update view count
@@ -302,18 +271,11 @@ app.get('/share/:shortCode', async (req, res) => {
         sharedWish.lastViewedAt = new Date();
         await sharedWish.save();
 
-        // Send the full HTML page
-        res.send(sharedWish.customizedHtml);
+        res.json(sharedWish);
     } catch (error) {
-        console.error('Error serving shared wish:', error);
-        res.status(500).send('Error loading the wish');
+        console.error('Error fetching shared wish:', error);
+        res.status(500).json({ error: 'Failed to get shared wish' });
     }
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Something went wrong!' });
 });
 
 // Start server

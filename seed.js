@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Template = require('./models/template');
 
 // MongoDB connection string
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@eventwishes.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
 
 // Sample template data with modern design
 const sampleTemplates = [
@@ -22,7 +22,7 @@ const sampleTemplates = [
                 <p style="font-size: 1.1em; color: #666;">With love,<br>{{senderName}}</p>
             </div>
         `,
-        previewUrl: "https://i.imgur.com/birthday_preview.jpg"
+        previewUrl: "https://imgur.com/gallery/shouldnt-even-be-debate-this-stage-ttf8q4h"
     },
     {
         title: "Wedding Anniversary",
@@ -350,21 +350,30 @@ const sampleTemplates = [
     }
 ];
 
-// Connect to MongoDB and seed data
-mongoose.connect(MONGODB_URI)
-    .then(() => {
-        console.log('Connected to MongoDB');
-        return Template.deleteMany({}); // Clear existing templates
-    })
-    .then(() => {
-        console.log('Existing templates cleared');
-        return Template.insertMany(sampleTemplates);
-    })
-    .then((result) => {
-        console.log(`${result.length} templates inserted successfully`);
-        mongoose.connection.close();
-    })
-    .catch((error) => {
-        console.error('Error seeding data:', error);
-        mongoose.connection.close();
-    });
+async function seedDatabase() {
+    try {
+        // Connect to MongoDB
+        await mongoose.connect(MONGODB_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        });
+        console.log('Connected to MongoDB successfully');
+
+        // Clear existing templates
+        await Template.deleteMany({});
+        console.log('Cleared existing templates');
+
+        // Insert new templates
+        const result = await Template.insertMany(sampleTemplates);
+        console.log(`Successfully seeded ${result.length} templates`);
+
+        console.log('Database seeding completed');
+        process.exit(0);
+    } catch (error) {
+        console.error('Error seeding database:', error);
+        process.exit(1);
+    }
+}
+
+// Run the seeding function
+seedDatabase();
