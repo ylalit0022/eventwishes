@@ -42,6 +42,8 @@
     <string name="whatsapp_not_installed">WhatsApp is not installed on your device</string>
     <string name="facebook_share_error">Could not share to Facebook. Please try again.</string>
     <string name="twitter_share_error">Could not share to Twitter. Please try again.</string>
+    <string name="please_enter_names">Please enter both recipient and sender names</string>
+    <string name="template_error">Template not found or invalid</string>
 
     <!-- Create Fragment -->
     <string name="create_template">Create Template</string>

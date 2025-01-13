@@ -166,8 +166,19 @@ public class ScriptEditorFragment extends Fragment {
     
     private void shareToWhatsApp() {
         try {
-            String recipient = recipientInput.getText() != null ? recipientInput.getText().toString() : "";
-            String sender = senderInput.getText() != null ? senderInput.getText().toString() : "";
+            String recipient = recipientInput.getText() != null ? recipientInput.getText().toString().trim() : "";
+            String sender = senderInput.getText() != null ? senderInput.getText().toString().trim() : "";
+            
+            // Validate inputs
+            if (recipient.isEmpty() || sender.isEmpty()) {
+                Snackbar.make(requireView(), R.string.please_enter_names, Snackbar.LENGTH_SHORT).show();
+                return;
+            }
+            
+            if (templateId == null || templateId.isEmpty()) {
+                Snackbar.make(requireView(), R.string.template_error, Snackbar.LENGTH_SHORT).show();
+                return;
+            }
             
             // Show loading indicator
             progressBar.setVisibility(View.VISIBLE);

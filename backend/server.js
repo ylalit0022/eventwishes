@@ -68,12 +68,37 @@ app.get('/api/templates/:id', async (req, res) => {
 app.post('/api/share', async (req, res) => {
     try {
         const { templateId, recipientName, senderName, htmlContent } = req.body;
+        console.log('Share request:', { templateId, recipientName, senderName, htmlContent: !!htmlContent });
 
         // Validate required fields
-        if (!templateId || !recipientName || !senderName) {
+        const missingFields = [];
+        if (!templateId) missingFields.push('templateId');
+        if (!recipientName) missingFields.push('recipientName');
+        if (!senderName) missingFields.push('senderName');
+        if (!htmlContent) missingFields.push('htmlContent');
+
+        if (missingFields.length > 0) {
             return res.status(400).json({ 
                 error: 'Missing required fields',
-                required: ['templateId', 'recipientName', 'senderName']
+                missingFields,
+                received: { templateId, recipientName, senderName, hasHtml: !!htmlContent }
+            });
+        }
+
+        // Validate templateId format
+        if (!mongoose.Types.ObjectId.isValid(templateId)) {
+            return res.status(400).json({
+                error: 'Invalid templateId format',
+                received: templateId
+            });
+        }
+
+        // Check if template exists
+        const template = await Template.findById(templateId);
+        if (!template) {
+            return res.status(404).json({
+                error: 'Template not found',
+                templateId
             });
         }
 
@@ -84,9 +109,9 @@ app.post('/api/share', async (req, res) => {
         const sharedWish = new SharedWish({
             shortCode,
             templateId,
-            recipientName,
-            senderName,
-            customizedHtml: htmlContent || '',
+            recipientName: recipientName.trim(),
+            senderName: senderName.trim(),
+            customizedHtml: htmlContent,
             createdAt: new Date()
         });
 
@@ -105,7 +130,8 @@ app.post('/api/share', async (req, res) => {
         console.error('Share error:', error);
         res.status(500).json({ 
             error: 'Failed to create share link',
-            details: error.message 
+            details: error.message,
+            type: error.name
         });
     }
 });
