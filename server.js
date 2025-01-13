@@ -36,8 +36,8 @@ process.on('SIGINT', async () => {
 });
 
 // Import models
-const Template = require('./models/template');
-const SharedWish = require('./models/sharedWish');
+const Template = require('./models/template.js');
+const SharedWish = require('./models/sharedWish.js');
 
 // Serve static files
 app.use(express.static('public'));
