@@ -3,6 +3,7 @@ package com.ds.eventwishes;
 import android.os.Bundle;
 import android.net.Uri;
 import android.content.Intent;
+import android.view.View;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
@@ -22,6 +23,11 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        // Hide the action bar
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().hide();
+        }
+
         // Set up Navigation
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.nav_host_fragment);
@@ -33,8 +39,20 @@ public class MainActivity extends AppCompatActivity {
                 R.id.navigation_home, R.id.navigation_editor, R.id.navigation_profile)
                 .build();
 
-        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         NavigationUI.setupWithNavController(navView, navController);
+
+        // Set up navigation listener to handle bottom navigation visibility
+        navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
+            // Show bottom navigation only for main navigation items
+            if (destination.getId() == R.id.navigation_home ||
+                destination.getId() == R.id.navigation_editor ||
+                destination.getId() == R.id.navigation_profile) {
+                navView.setVisibility(View.VISIBLE);
+            } else {
+                // Hide for other destinations like ScriptEditorFragment
+                navView.setVisibility(View.GONE);
+            }
+        });
 
         // Handle shared links
         handleIntent(getIntent());
