@@ -16,12 +16,15 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:baselineAligned="false">
 
             <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
                 android:hint="@string/recipient_name"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
@@ -35,10 +38,11 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
                 android:hint="@string/your_name"
-                android:layout_marginTop="8dp"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -80,6 +84,7 @@
         app:layout_constraintBottom_toBottomOf="parent">
 
         <Button
+            android:visibility="gone"
             android:id="@+id/previewButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
