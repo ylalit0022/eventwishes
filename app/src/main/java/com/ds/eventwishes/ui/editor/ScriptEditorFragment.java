@@ -11,6 +11,7 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -43,15 +44,16 @@ public class ScriptEditorFragment extends Fragment {
     private WishDatabase wishDatabase;
     private String templateId;
     private String htmlContent;
+    private View rootView;
     
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View root = inflater.inflate(R.layout.fragment_script_editor, container, false);
+        rootView = inflater.inflate(R.layout.fragment_script_editor, container, false);
         
-        webView = root.findViewById(R.id.webView);
-        progressBar = root.findViewById(R.id.progressBar);
-        recipientInput = root.findViewById(R.id.recipientInput);
-        senderInput = root.findViewById(R.id.senderInput);
+        webView = rootView.findViewById(R.id.webView);
+        progressBar = rootView.findViewById(R.id.progressBar);
+        recipientInput = rootView.findViewById(R.id.recipientInput);
+        senderInput = rootView.findViewById(R.id.senderInput);
         analyticsManager = AnalyticsManager.getInstance(requireContext());
         wishDatabase = WishDatabase.getInstance(requireContext());
         
@@ -66,9 +68,10 @@ public class ScriptEditorFragment extends Fragment {
         
         setupWebView();
         setupInputListeners();
-        setupShareButton(root);
+        setupShareButton(rootView);
+        setupTouchListener();
         
-        return root;
+        return rootView;
     }
     
     private void setupWebView() {
@@ -255,6 +258,29 @@ public class ScriptEditorFragment extends Fragment {
         });
     }
     
+    private void setupTouchListener() {
+        rootView.setOnTouchListener((v, event) -> {
+            hideKeyboard();
+            return false;
+        });
+
+        webView.setOnTouchListener((v, event) -> {
+            hideKeyboard();
+            return false;
+        });
+    }
+
+    private void hideKeyboard() {
+        if (getActivity() != null && rootView != null) {
+            InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+            View focusedView = getActivity().getCurrentFocus();
+            if (focusedView != null) {
+                imm.hideSoftInputFromWindow(focusedView.getWindowToken(), 0);
+                focusedView.clearFocus();
+            }
+        }
+    }
+
     private void shareToWhatsApp() {
         try {
             String recipient = recipientInput.getText() != null ? recipientInput.getText().toString().trim() : "";
