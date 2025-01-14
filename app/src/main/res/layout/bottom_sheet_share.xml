@@ -21,11 +21,13 @@
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/whatsappShare"
-            style="@style/Widget.Material3.CardView.Filled"
+            style="@style/Widget.MaterialComponents.CardView"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_margin="4dp">
+            android:layout_margin="4dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="8dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -47,11 +49,13 @@
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/facebookShare"
-            style="@style/Widget.Material3.CardView.Filled"
+            style="@style/Widget.MaterialComponents.CardView"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_margin="4dp">
+            android:layout_margin="4dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="8dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -73,11 +77,13 @@
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/twitterShare"
-            style="@style/Widget.Material3.CardView.Filled"
+            style="@style/Widget.MaterialComponents.CardView"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_margin="4dp">
+            android:layout_margin="4dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="8dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -103,15 +109,17 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:layout_marginTop="8dp">
+        android:layout_marginTop="16dp">
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/emailShare"
-            style="@style/Widget.Material3.CardView.Filled"
+            style="@style/Widget.MaterialComponents.CardView"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_margin="4dp">
+            android:layout_margin="4dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="8dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -133,11 +141,13 @@
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/copyLink"
-            style="@style/Widget.Material3.CardView.Filled"
+            style="@style/Widget.MaterialComponents.CardView"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_margin="4dp">
+            android:layout_margin="4dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="8dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -147,7 +157,7 @@
                 <ImageView
                     android:layout_width="32dp"
                     android:layout_height="32dp"
-                    android:src="@drawable/ic_copy"
+                    android:src="@drawable/ic_link"
                     android:contentDescription="@string/copy_link"/>
                 <TextView
                     android:layout_width="wrap_content"
@@ -159,11 +169,13 @@
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/moreOptions"
-            style="@style/Widget.Material3.CardView.Filled"
+            style="@style/Widget.MaterialComponents.CardView"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_margin="4dp">
+            android:layout_margin="4dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="8dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

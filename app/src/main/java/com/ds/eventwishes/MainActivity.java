@@ -1,86 +1,88 @@
 package com.ds.eventwishes;
 
 import android.os.Bundle;
-import android.net.Uri;
-import android.content.Intent;
 import android.view.View;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.ds.eventwishes.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     private NavController navController;
+    private boolean isFirstLaunch = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Handle splash screen transition
+        SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
+        splashScreen.setKeepOnScreenCondition(() -> isFirstLaunch);
+        
         super.onCreate(savedInstanceState);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // Hide the action bar
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().hide();
-        }
-
-        // Set up Navigation
+        // Setup navigation
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.nav_host_fragment);
-        navController = navHostFragment.getNavController();
+        if (navHostFragment != null) {
+            navController = navHostFragment.getNavController();
+            
+            // Configure bottom navigation
+            AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
+                    R.id.navigation_home, R.id.navigation_profile)
+                    .build();
+                    
+            NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
+            NavigationUI.setupWithNavController(binding.navView, navController);
+        }
 
-        // Configure Bottom Navigation
-        BottomNavigationView navView = binding.navView;
-        AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.navigation_home, R.id.navigation_editor, R.id.navigation_profile)
-                .build();
-
-        NavigationUI.setupWithNavController(navView, navController);
-
-        // Set up navigation listener to handle bottom navigation visibility
-        navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
-            // Show bottom navigation only for main navigation items
-            if (destination.getId() == R.id.navigation_home ||
-                destination.getId() == R.id.navigation_editor ||
-                destination.getId() == R.id.navigation_profile) {
-                navView.setVisibility(View.VISIBLE);
-            } else {
-                // Hide for other destinations like ScriptEditorFragment
-                navView.setVisibility(View.GONE);
-            }
-        });
-
-        // Handle shared links
-        handleIntent(getIntent());
+        // After setup, mark first launch as complete
+        isFirstLaunch = false;
     }
 
     @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        handleIntent(intent);
+    public void onBackPressed() {
+        if (navController != null && 
+            navController.getCurrentDestination() != null && 
+            navController.getCurrentDestination().getId() == R.id.navigation_home) {
+            // If we're on the home screen, show exit dialog
+            showExitDialog();
+        } else {
+            super.onBackPressed();
+        }
     }
 
-    private void handleIntent(Intent intent) {
-        String action = intent.getAction();
-        Uri data = intent.getData();
+    private void showExitDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_exit, null);
         
-        if (Intent.ACTION_VIEW.equals(action) && data != null) {
-            String templateId = data.getQueryParameter("id");
-            if (templateId != null) {
-                // Navigate to editor with template ID
-                Bundle args = new Bundle();
-                args.putString("wishId", templateId);
-                navController.navigate(R.id.navigation_editor, args);
-            }
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .create();
+
+        // Set dialog background to be rounded
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(R.drawable.dialog_rounded_background);
         }
+
+        // Setup click listeners
+        dialogView.findViewById(R.id.btnNo).setOnClickListener(v -> dialog.dismiss());
+        dialogView.findViewById(R.id.btnYes).setOnClickListener(v -> {
+            dialog.dismiss();
+            finishAffinity();
+        });
+
+        dialog.show();
     }
 
     @Override
     public boolean onSupportNavigateUp() {
-        return navController.navigateUp() || super.onSupportNavigateUp();
+        return navController != null && 
+               NavigationUI.navigateUp(navController, (AppBarConfiguration) null)
+               || super.onSupportNavigateUp();
     }
 }

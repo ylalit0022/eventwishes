@@ -18,7 +18,7 @@
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
             android:hint="@string/recipient_name"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/recipientInput"
@@ -34,7 +34,7 @@
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:hint="@string/your_name"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/senderInput"

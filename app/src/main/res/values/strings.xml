@@ -104,4 +104,11 @@
     <string name="cancel">Cancel</string>
     <string name="ok">OK</string>
     <string name="done">Done</string>
+
+    <string name="exit_dialog_title">Are You Sure?</string>
+    <string name="exit_dialog_message">Do you want to exit?</string>
+    <string name="no">no</string>
+    <string name="yes">yes</string>
+
+
 </resources>

@@ -1,19 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.EventWishes" parent="Theme.Material3.DayNight">
-        <!-- Primary brand color. -->
+    <!-- Base application theme -->
+    <style name="Base.Theme.EventWishes" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <!-- Primary brand color -->
         <item name="colorPrimary">@color/primary</item>
-        <item name="colorPrimaryVariant">@color/primary_dark</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <!-- Secondary brand color. -->
+        <item name="colorPrimaryDark">@color/primary_dark</item>
         <item name="colorSecondary">@color/secondary</item>
-        <item name="colorSecondaryVariant">@color/secondary_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
         <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        
+        <!-- Status bar color -->
+        <item name="android:statusBarColor">@color/primary_dark</item>
+        
         <!-- Enable window content transitions -->
         <item name="android:windowActivityTransitions">true</item>
+        
+        <!-- Dialog theme -->
+        <item name="alertDialogTheme">@style/Theme.EventWishes.Dialog</item>
     </style>
 
     <style name="Theme.EventWishes" parent="Base.Theme.EventWishes" />
+    
+    <!-- Custom Dialog Theme -->
+    <style name="Theme.EventWishes.Dialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.EventWishes.Button</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.EventWishes.Button.OutlinedButton</item>
+        <item name="android:background">@drawable/dialog_rounded_background</item>
+    </style>
+
+    <!-- Custom Button Styles -->
+    <style name="Widget.EventWishes.Button" parent="Widget.MaterialComponents.Button">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:padding">16dp</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="backgroundTint">@color/primary</item>
+    </style>
+
+    <style name="Widget.EventWishes.Button.OutlinedButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:padding">16dp</item>
+        <item name="android:textColor">@color/primary</item>
+        <item name="strokeColor">@color/primary</item>
+        <item name="strokeWidth">2dp</item>
+    </style>
+    
+    <!-- Splash Screen theme -->
+    <style name="Theme.EventWishes.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/primary</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+        <item name="postSplashScreenTheme">@style/Theme.EventWishes</item>
+    </style>
 </resources>

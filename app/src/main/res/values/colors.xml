@@ -4,6 +4,8 @@
     <color name="white">#FFFFFFFF</color>
     <color name="primary">#FF6200EE</color>
     <color name="primary_dark">#FF3700B3</color>
+    <color name="primary_light">#FF03DAC5</color>
     <color name="secondary">#FF03DAC5</color>
     <color name="secondary_dark">#FF018786</color>
+    <color name="error_light">#FF000000</color>
 </resources>

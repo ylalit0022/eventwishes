@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:ordering="sequentially">
+    
+    <!-- First, scale and fade in -->
+    <set android:ordering="together">
+        <objectAnimator
+            android:propertyName="scaleX"
+            android:duration="700"
+            android:valueFrom="0.0"
+            android:valueTo="1.2"
+            android:valueType="floatType"
+            android:interpolator="@android:interpolator/overshoot"/>
+        
+        <objectAnimator
+            android:propertyName="scaleY"
+            android:duration="700"
+            android:valueFrom="0.0"
+            android:valueTo="1.2"
+            android:valueType="floatType"
+            android:interpolator="@android:interpolator/overshoot"/>
+        
+        <objectAnimator
+            android:propertyName="alpha"
+            android:duration="400"
+            android:valueFrom="0.0"
+            android:valueTo="1.0"
+            android:valueType="floatType"/>
+    </set>
+    
+    <!-- Then bounce back to normal size -->
+    <set android:ordering="together"
+        android:startOffset="700">
+        <objectAnimator
+            android:propertyName="scaleX"
+            android:duration="300"
+            android:valueFrom="1.2"
+            android:valueTo="1.0"
+            android:valueType="floatType"
+            android:interpolator="@android:interpolator/fast_out_slow_in"/>
+        
+        <objectAnimator
+            android:propertyName="scaleY"
+            android:duration="300"
+            android:valueFrom="1.2"
+            android:valueTo="1.0"
+            android:valueType="floatType"
+            android:interpolator="@android:interpolator/fast_out_slow_in"/>
+    </set>
+    
+    <!-- Finally, add a subtle pulse -->
+    <set android:ordering="together"
+        android:startOffset="1000">
+        <objectAnimator
+            android:propertyName="scaleX"
+            android:duration="1000"
+            android:valueFrom="1.0"
+            android:valueTo="1.05"
+            android:repeatCount="infinite"
+            android:repeatMode="reverse"
+            android:valueType="floatType"
+            android:interpolator="@android:interpolator/linear_out_slow_in"/>
+        
+        <objectAnimator
+            android:propertyName="scaleY"
+            android:duration="1000"
+            android:valueFrom="1.0"
+            android:valueTo="1.05"
+            android:repeatCount="infinite"
+            android:repeatMode="reverse"
+            android:valueType="floatType"
+            android:interpolator="@android:interpolator/linear_out_slow_in"/>
+    </set>
+</set>

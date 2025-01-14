@@ -419,7 +419,6 @@ public class ScriptEditorFragment extends Fragment {
     }
     
     private String getShareUrl() {
-        // Implement share URL generation
         return "https://eventwishes.com/share/" + templateId;
     }
 }

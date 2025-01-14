@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+            <group
+                android:pivotX="54"
+                android:pivotY="54"
+                android:scaleX="0.7"
+                android:scaleY="0.7">
+                <path
+                    android:fillColor="@color/primary"
+                    android:pathData="M54,28C42.95,28 34,36.95 34,48C34,63.85 54,80 54,80C54,80 74,63.85 74,48C74,36.95 65.05,28 54,28ZM54,52C51.79,52 50,50.21 50,48C50,45.79 51.79,44 54,44C56.21,44 58,45.79 58,48C58,50.21 56.21,52 54,52Z" />
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="android:fillColor">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="1000"
+                android:propertyName="fillColor"
+                android:valueFrom="@color/primary_light"
+                android:valueTo="@color/primary"
+                android:valueType="colorType">
+                <aapt:attr name="android:interpolator">
+                    <pathInterpolator android:pathData="M 0.0,0.0 c0.4,0 0.2,1 1.0,1.0"/>
+                </aapt:attr>
+            </objectAnimator>
+        </aapt:attr>
+    </target>
+    <target android:name="android:scaleX">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="1000"
+                android:propertyName="scaleX"
+                android:valueFrom="0.0"
+                android:valueTo="1.0"
+                android:valueType="floatType">
+                <aapt:attr name="android:interpolator">
+                    <pathInterpolator android:pathData="M 0.0,0.0 c0.4,0 0.2,1 1.0,1.0"/>
+                </aapt:attr>
+            </objectAnimator>
+        </aapt:attr>
+    </target>
+    <target android:name="android:scaleY">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="1000"
+                android:propertyName="scaleY"
+                android:valueFrom="0.0"
+                android:valueTo="1.0"
+                android:valueType="floatType">
+                <aapt:attr name="android:interpolator">
+                    <pathInterpolator android:pathData="M 0.0,0.0 c0.4,0 0.2,1 1.0,1.0"/>
+                </aapt:attr>
+            </objectAnimator>
+        </aapt:attr>
+    </target>
+</animated-vector>
