@@ -45,6 +45,7 @@ public class ScriptEditorFragment extends Fragment {
     private String templateId;
     private String htmlContent;
     private View rootView;
+    private String lastShareUrl;
     
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -300,8 +301,10 @@ public class ScriptEditorFragment extends Fragment {
             // Show loading indicator
             progressBar.setVisibility(View.VISIBLE);
             
-            // Create share URL with the wish content
-            ShareRequest request = new ShareRequest(templateId, recipient, sender, htmlContent);
+            // Create share URL with just the template ID and names
+            ShareRequest request = new ShareRequest(templateId, recipient, sender);
+            Log.d("ScriptEditorFragment", "Creating share for template: " + templateId);
+            
             ApiClient.getInstance().createShareLink(request).enqueue(new Callback<ShareResponse>() {
                 @Override
                 public void onResponse(@NonNull Call<ShareResponse> call, @NonNull Response<ShareResponse> response) {
@@ -315,49 +318,45 @@ public class ScriptEditorFragment extends Fragment {
                             "To: %s\n" +
                             "From: %s\n\n" +
                             "View your personalized wish here:\n%s\n\n" +
-                            "Don't have the app? Get it here:\n%s",
-                            recipient,
-                            sender,
-                            shareUrl,
-                            playStoreUrl);
+                            "Create your own wishes with Event Wishes:\n%s",
+                            recipient, sender, shareUrl, playStoreUrl);
                             
-                        try {
-                            Intent intent = new Intent(Intent.ACTION_SEND);
-                            intent.setType("text/plain");
-                            intent.setPackage("com.whatsapp");
-                            intent.putExtra(Intent.EXTRA_TEXT, shareText);
-                            
-                            // Try to start WhatsApp
-                            try {
-                                startActivity(intent);
-                                analyticsManager.logShare("whatsapp");
-                            } catch (android.content.ActivityNotFoundException e) {
-                                // WhatsApp not installed, open Play Store
-                                openPlayStore("com.whatsapp");
-                            }
-                        } catch (Exception e) {
-                            android.util.Log.e("ScriptEditor", "WhatsApp share error", e);
-                            Snackbar.make(requireView(), R.string.whatsapp_not_installed, Snackbar.LENGTH_SHORT).show();
-                        }
+                        // Save share URL for later use
+                        lastShareUrl = shareUrl;
+                        
+                        // Show share options dialog
+                        showShareOptions();
+                        
+                        // Log success analytics
+                        analyticsManager.logShareEvent(templateId, "created");
                     } else {
-                        String errorMessage = getString(R.string.share_error);
-                        if (response.errorBody() != null) {
-                            try {
-                                errorMessage = response.errorBody().string();
-                                android.util.Log.e("ScriptEditor", "Share error: " + errorMessage);
-                            } catch (Exception e) {
-                                e.printStackTrace();
+                        String error = "Error: ";
+                        try {
+                            if (response.errorBody() != null) {
+                                error += response.errorBody().string();
                             }
+                        } catch (IOException e) {
+                            error += "Unknown error occurred";
                         }
-                        Snackbar.make(requireView(), errorMessage, Snackbar.LENGTH_SHORT).show();
+                        Log.e("ScriptEditorFragment", error);
+                        
+                        // Log error analytics
+                        analyticsManager.logError("share_creation", error);
+                        
+                        Snackbar.make(requireView(), error, Snackbar.LENGTH_LONG).show();
                     }
                 }
-
+                
                 @Override
                 public void onFailure(@NonNull Call<ShareResponse> call, @NonNull Throwable t) {
-                    android.util.Log.e("ScriptEditor", "Share network error", t);
                     progressBar.setVisibility(View.GONE);
-                    Snackbar.make(requireView(), R.string.share_error, Snackbar.LENGTH_SHORT).show();
+                    String errorMessage = "Failed to create share: " + t.getMessage();
+                    Log.e("ScriptEditorFragment", errorMessage, t);
+                    
+                    // Log error analytics
+                    analyticsManager.logError("share_network", t.getMessage());
+                    
+                    Snackbar.make(requireView(), errorMessage, Snackbar.LENGTH_LONG).show();
                 }
             });
         } catch (Exception e) {

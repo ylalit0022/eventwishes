@@ -49,9 +49,15 @@ public class AnalyticsManager {
     }
 
     public void logShare(String platform) {
-        Bundle params = new Bundle();
-        params.putString("share_platform", platform);
-        firebaseAnalytics.logEvent("share_wish", params);
+        Bundle bundle = new Bundle();
+        bundle.putString("platform", platform);
+        firebaseAnalytics.logEvent("share_action", bundle);
+    }
+
+    public void logShareCreated() {
+        Bundle bundle = new Bundle();
+        bundle.putLong("timestamp", System.currentTimeMillis());
+        firebaseAnalytics.logEvent("share_created", bundle);
     }
 
     public void logError(String errorType, String errorMessage) {

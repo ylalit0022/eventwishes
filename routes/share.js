@@ -7,25 +7,16 @@ const shortid = require('shortid');
 // Create share link
 router.post('/', async (req, res) => {
     try {
-        const { templateId, recipientName, senderName, customizedHtml } = req.body;
-
-        // Log the received data
-        console.log('Received share request:', {
-            templateId,
-            recipientName,
-            senderName,
-            customizedHtml: customizedHtml ? 'Present' : 'Missing'
-        });
+        const { templateId, recipientName, senderName } = req.body;
 
         // Validate required fields
-        if (!templateId || !recipientName || !senderName || !customizedHtml) {
+        if (!templateId || !recipientName || !senderName) {
             return res.status(400).json({ 
                 error: 'Missing required fields',
                 details: {
                     templateId: !templateId ? 'Missing templateId' : undefined,
                     recipientName: !recipientName ? 'Missing recipientName' : undefined,
-                    senderName: !senderName ? 'Missing senderName' : undefined,
-                    customizedHtml: !customizedHtml ? 'Missing customizedHtml' : undefined
+                    senderName: !senderName ? 'Missing senderName' : undefined
                 }
             });
         }
@@ -39,20 +30,14 @@ router.post('/', async (req, res) => {
         // Generate unique short code
         const shortCode = shortid.generate();
 
-        // Create shared wish
+        // Create shared wish with template's HTML content
         const sharedWish = new SharedWish({
             shortCode,
             templateId,
             recipientName: recipientName.trim(),
             senderName: senderName.trim(),
-            customizedHtml, // Make sure we're using the correct field name
+            customizedHtml: template.htmlContent, // Use template's HTML content
             createdAt: new Date()
-        });
-
-        // Log the shared wish before saving
-        console.log('Saving shared wish:', {
-            shortCode: sharedWish.shortCode,
-            customizedHtml: sharedWish.customizedHtml ? 'Present' : 'Missing'
         });
 
         await sharedWish.save();
@@ -63,15 +48,7 @@ router.post('/', async (req, res) => {
         res.json({
             shareUrl,
             shortCode,
-            message: 'Wish shared successfully',
-            wish: {
-                id: sharedWish._id,
-                shortCode: sharedWish.shortCode,
-                recipientName: sharedWish.recipientName,
-                senderName: sharedWish.senderName,
-                customizedHtml: sharedWish.customizedHtml,
-                createdAt: sharedWish.createdAt
-            }
+            message: 'Wish shared successfully'
         });
     } catch (error) {
         console.error('Share error:', error);

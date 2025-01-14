@@ -132,17 +132,25 @@ public class ResourceActivity extends AppCompatActivity {
         webSettings.setUseWideViewPort(true);
         webSettings.setBuiltInZoomControls(true);
         webSettings.setDisplayZoomControls(false);
+        webSettings.setDefaultTextEncodingName("UTF-8");
+        
+        // Enable mixed content if needed
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        }
 
         binding.webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 binding.progressBar.setVisibility(View.GONE);
+                Log.d(TAG, "onPageFinished: WebView content loaded");
             }
 
             @Override
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 super.onReceivedError(view, errorCode, description, failingUrl);
+                Log.e(TAG, "onReceivedError: WebView error: " + description);
                 showError(getString(R.string.error_loading));
             }
         });
@@ -204,17 +212,44 @@ public class ResourceActivity extends AppCompatActivity {
     private void displayWish(SharedWish wish) {
         try {
             if (wish == null || wish.getCustomizedHtml() == null || wish.getCustomizedHtml().trim().isEmpty()) {
+                Log.e(TAG, "displayWish: Missing customizedHtml");
                 showError(getString(R.string.error_loading));
                 return;
             }
 
+            Log.d(TAG, "displayWish: Loading HTML content");
             binding.contentContainer.setVisibility(View.VISIBLE);
-            binding.webView.loadData(wish.getCustomizedHtml(), "text/html; charset=UTF-8", "UTF-8");
+            
+            // Base URL for relative paths in HTML
+            String baseUrl = "https://eventwishes.onrender.com";
+            
+            // Wrap HTML in proper structure and add viewport meta tag
+            String htmlContent = String.format(
+                "<!DOCTYPE html><html><head>" +
+                "<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>" +
+                "<style>body{margin:0;padding:16px;word-wrap:break-word;}</style>" +
+                "</head><body>%s</body></html>",
+                wish.getCustomizedHtml()
+            );
+            
+            // Load the HTML content
+            binding.webView.loadDataWithBaseURL(
+                baseUrl,
+                htmlContent,
+                "text/html",
+                "UTF-8",
+                null
+            );
             
             binding.recipientText.setText(String.format("To: %s", 
                 wish.getRecipientName() != null ? wish.getRecipientName() : "Unknown"));
             binding.senderText.setText(String.format("From: %s", 
                 wish.getSenderName() != null ? wish.getSenderName() : "Unknown"));
+            
+            // Add debug logging
+            Log.d(TAG, "displayWish: Content loaded successfully");
+            Log.d(TAG, "displayWish: RecipientName: " + wish.getRecipientName());
+            Log.d(TAG, "displayWish: SenderName: " + wish.getSenderName());
             
         } catch (Exception e) {
             Log.e(TAG, "displayWish: Error displaying wish", e);
