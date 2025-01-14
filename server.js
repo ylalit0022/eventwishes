@@ -9,6 +9,14 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Validate MongoDB URI
+if (!process.env.MONGODB_URI) {
+    console.error('ERROR: MONGODB_URI environment variable is not set!');
+    console.error('Please set MONGODB_URI in your environment variables or .env file');
+    console.error('Example: MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>');
+    process.exit(1); // Exit with error
+}
+
 // Error handling middleware
 const errorHandler = (err, req, res, next) => {
     console.error('Error:', err.stack);
@@ -88,39 +96,50 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Start server first
-const server = app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-});
+// MongoDB Connection with retry mechanism
+const connectWithRetry = async (retries = 5, delay = 5000) => {
+    const uri = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
+    
+    for (let i = 0; i < retries; i++) {
+        try {
+            console.log(`Attempting to connect to MongoDB (attempt ${i + 1}/${retries})...`);
+            await mongoose.connect(uri, {
+                serverSelectionTimeoutMS: 5000,
+                heartbeatFrequencyMS: 2000,
+                maxPoolSize: 10,
+                minPoolSize: 1,
+                maxIdleTimeMS: 30000
+            });
+            console.log('Successfully connected to MongoDB Atlas!');
+            return true;
+        } catch (err) {
+            console.error(`MongoDB connection attempt ${i + 1} failed:`, err.message);
+            if (i < retries - 1) {
+                console.log(`Retrying in ${delay/1000} seconds...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    return false;
+};
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received. Closing server...');
-    server.close(() => {
-        console.log('Server closed.');
-        mongoose.connection.close(false, () => {
-            console.log('MongoDB connection closed.');
-            process.exit(0);
-        });
-    });
-});
+// Start server and MongoDB connection
+const startServer = async () => {
+    try {
+        const connected = await connectWithRetry();
+        if (!connected) {
+            console.error('Failed to connect to MongoDB after multiple retries. Exiting...');
+            process.exit(1);
+        }
 
-// Then try to connect to MongoDB
-console.log('Attempting to connect to MongoDB...');
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => {
-        console.log('Successfully connected to MongoDB Atlas!');
-        
         // Import models after successful connection
         const Template = require('./models/template.js');
         const SharedWish = require('./models/sharedWish.js');
-        
-        // Import routes
         const shareRouter = require('./routes/share');
-        
+
         // Use routes
         app.use('/api/share', shareRouter);
-        
+
         // Serve wish page and API endpoint
         const serveWish = async (req, res, isApi = false) => {
             try {
@@ -281,24 +300,56 @@ mongoose.connect(process.env.MONGODB_URI)
                 res.status(500).json({ error: 'Failed to get shared wish' });
             }
         });
-    })
-    .catch(err => {
-        console.error('MongoDB connection error:', err);
-        console.log('Server will continue running without MongoDB features');
-    });
 
-// Handle MongoDB connection events
-mongoose.connection.on('error', err => {
-    console.error('MongoDB connection error:', err);
-});
+        // Start server
+        app.listen(port, () => {
+            console.log(`Server is running on port ${port}`);
+            console.log(`App URL: ${process.env.APP_URL || `http://localhost:${port}`}`);
+        });
 
-mongoose.connection.on('disconnected', () => {
-    console.log('MongoDB disconnected. Attempting to reconnect...');
-});
+        // Handle MongoDB disconnection
+        mongoose.connection.on('disconnected', async () => {
+            console.log('MongoDB disconnected. Attempting to reconnect...');
+            const reconnected = await connectWithRetry(3, 3000);
+            if (!reconnected) {
+                console.error('Failed to reconnect to MongoDB. Shutting down...');
+                process.exit(1);
+            }
+        });
 
-mongoose.connection.on('reconnected', () => {
-    console.log('MongoDB reconnected');
-});
+        // Handle MongoDB errors
+        mongoose.connection.on('error', err => {
+            console.error('MongoDB connection error:', err);
+            // Only exit on critical errors
+            if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError') {
+                process.exit(1);
+            }
+        });
+
+        // Graceful shutdown
+        const shutdown = async () => {
+            console.log('Received shutdown signal. Closing connections...');
+            try {
+                await mongoose.connection.close();
+                console.log('MongoDB connection closed.');
+                process.exit(0);
+            } catch (err) {
+                console.error('Error during shutdown:', err);
+                process.exit(1);
+            }
+        };
+
+        process.on('SIGINT', shutdown);
+        process.on('SIGTERM', shutdown);
+
+    } catch (err) {
+        console.error('Error starting server:', err);
+        process.exit(1);
+    }
+};
+
+// Start the application
+startServer();
 
 // Add error handler middleware last
 app.use(errorHandler);
