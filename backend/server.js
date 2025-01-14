@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const path = require('path');
+const fs = require('fs');
 const shortid = require('shortid');
 require('dotenv').config();
 
@@ -12,8 +13,37 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from public directory
-app.use(express.static('public'));
+// Debug logging middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    next();
+});
+
+// Asset links data
+const assetLinksData = [{
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+        "namespace": "android_app",
+        "package_name": "com.ds.eventwishes",
+        "sha256_cert_fingerprints": [
+            "B2:2F:26:9A:82:99:97:6C:FB:D3:6D:1D:80:DE:B0:93:22:F9:30:D2:0B:69:05:28:2F:05:60:39:0B:F1:4D:5D"
+        ]
+    }
+}];
+
+// Function to serve assetlinks.json
+const serveAssetLinks = (req, res) => {
+    console.log('Serving assetlinks.json for path:', req.path);
+    res.setHeader('Content-Type', 'application/json');
+    res.json(assetLinksData);
+};
+
+// Routes for assetlinks.json (both root and .well-known)
+app.get('/assetlinks.json', serveAssetLinks);
+app.get('/.well-known/assetlinks.json', serveAssetLinks);
+
+// Serve static files from public directory with explicit path
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve .well-known directory with correct content type
 app.use('/.well-known', express.static(path.join(__dirname, 'public/.well-known'), {
@@ -24,25 +54,180 @@ app.use('/.well-known', express.static(path.join(__dirname, 'public/.well-known'
     }
 }));
 
-// MongoDB Atlas connection
-const uri = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
+// Start server first
+const server = app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    console.log('Try accessing:');
+    console.log(`http://localhost:${port}/assetlinks.json`);
+    console.log(`http://localhost:${port}/.well-known/assetlinks.json`);
+});
 
+// Then try to connect to MongoDB
 console.log('Attempting to connect to MongoDB...');
+mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority')
+    .then(() => {
+        console.log('Successfully connected to MongoDB Atlas!');
+        
+        // Import models after successful connection
+        const Template = require('./models/template.js');
+        const SharedWish = require('./models/sharedWish.js');
+        
+        // Import routes
+        const shareRouter = require('./routes/share');
+        
+        // Use routes
+        app.use('/api/share', shareRouter);
+        
+        // Serve wish page
+        app.get('/wish/:shortCode', async (req, res) => {
+            try {
+                const wish = await SharedWish.findOne({ shortCode: req.params.shortCode })
+                    .populate('templateId');
 
-// Connect to MongoDB before starting the server
-mongoose.connect(uri)
-  .then(() => {
-    console.log('Successfully connected to MongoDB Atlas!');
-    
-    // Only start the server after successful database connection
-    app.listen(port, () => {
-      console.log(`Server is running on port ${port}`);
+                if (!wish) {
+                    return res.status(404).send('Wish not found');
+                }
+
+                // Update view count
+                wish.views += 1;
+                wish.lastViewedAt = new Date();
+                await wish.save();
+
+                // Get preview image from template or use default
+                const previewImage = wish.templateId?.previewUrl || 
+                    `${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/images/default-preview.jpg`;
+
+                // Send HTML page with meta tags
+                res.send(getWishPageHtml(wish, previewImage));
+            } catch (error) {
+                console.error('Error serving wish page:', error);
+                res.status(500).send('Error loading wish');
+            }
+        });
+        
+        // API Routes for templates
+        app.get('/api/templates', async (req, res) => {
+            try {
+                const templates = await Template.find().sort({ updatedAt: -1 });
+                res.json(templates);
+            } catch (error) {
+                console.error('Error fetching templates:', error);
+                res.status(500).json({ message: error.message });
+            }
+        });
+
+        app.get('/api/templates/:id', async (req, res) => {
+            try {
+                const template = await Template.findById(req.params.id);
+                if (template) {
+                    res.json(template);
+                } else {
+                    res.status(404).json({ message: 'Template not found' });
+                }
+            } catch (error) {
+                console.error('Error fetching template:', error);
+                res.status(500).json({ message: error.message });
+            }
+        });
+
+        // Share API endpoint
+        app.post('/api/share', async (req, res) => {
+            try {
+                const { templateId, recipientName, senderName, htmlContent } = req.body;
+                console.log('Share request:', { templateId, recipientName, senderName, htmlContent: !!htmlContent });
+
+                // Validate required fields
+                const missingFields = [];
+                if (!templateId) missingFields.push('templateId');
+                if (!recipientName) missingFields.push('recipientName');
+                if (!senderName) missingFields.push('senderName');
+                if (!htmlContent) missingFields.push('htmlContent');
+
+                if (missingFields.length > 0) {
+                    return res.status(400).json({ 
+                        error: 'Missing required fields',
+                        missingFields,
+                        received: { templateId, recipientName, senderName, hasHtml: !!htmlContent }
+                    });
+                }
+
+                // Validate templateId format
+                if (!mongoose.Types.ObjectId.isValid(templateId)) {
+                    return res.status(400).json({
+                        error: 'Invalid templateId format',
+                        received: templateId
+                    });
+                }
+
+                // Check if template exists
+                const template = await Template.findById(templateId);
+                if (!template) {
+                    return res.status(404).json({
+                        error: 'Template not found',
+                        templateId
+                    });
+                }
+
+                // Generate unique short code
+                const shortCode = shortid.generate();
+
+                // Create shared wish
+                const sharedWish = new SharedWish({
+                    shortCode,
+                    templateId,
+                    recipientName: recipientName.trim(),
+                    senderName: senderName.trim(),
+                    customizedHtml: htmlContent,
+                    createdAt: new Date()
+                });
+
+                await sharedWish.save();
+
+                // Generate share URL
+                const baseUrl = process.env.BASE_URL || 'https://eventwishes.onrender.com';
+                const shareUrl = `${baseUrl}/wish/${shortCode}`;
+
+                res.json({
+                    shareUrl,
+                    shortCode,
+                    message: 'Wish shared successfully'
+                });
+            } catch (error) {
+                console.error('Share error:', error);
+                res.status(500).json({ 
+                    error: 'Failed to create share link',
+                    details: error.message,
+                    type: error.name
+                });
+            }
+        });
+
+        // Get shared wish
+        app.get('/api/wish/:shortCode', async (req, res) => {
+            try {
+                const sharedWish = await SharedWish.findOne({ shortCode: req.params.shortCode })
+                    .populate('templateId');
+
+                if (!sharedWish) {
+                    return res.status(404).json({ error: 'Shared wish not found' });
+                }
+
+                // Update view count
+                sharedWish.views += 1;
+                sharedWish.lastViewedAt = new Date();
+                await sharedWish.save();
+
+                res.json(sharedWish);
+            } catch (error) {
+                console.error('Error fetching shared wish:', error);
+                res.status(500).json({ error: 'Failed to get shared wish' });
+            }
+        });
+    })
+    .catch(err => {
+        console.error('MongoDB connection error:', err);
+        console.log('Server will continue running without MongoDB features');
     });
-  })
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
 
 // Handle MongoDB connection events
 mongoose.connection.on('error', err => {
@@ -55,6 +240,7 @@ mongoose.connection.on('disconnected', () => {
 
 process.on('SIGINT', async () => {
     await mongoose.connection.close();
+    server.close();
     process.exit(0);
 });
 
@@ -188,159 +374,3 @@ const getWishPageHtml = (wish, previewImage) => {
 </body>
 </html>`;
 };
-
-// Import models
-const Template = require('./models/template.js');
-const SharedWish = require('./models/sharedWish.js');
-
-// Import routes
-const shareRouter = require('./routes/share');
-
-// Use routes
-app.use('/api/share', shareRouter);
-
-// Serve wish page
-app.get('/wish/:shortCode', async (req, res) => {
-    try {
-        const wish = await SharedWish.findOne({ shortCode: req.params.shortCode })
-            .populate('templateId');
-
-        if (!wish) {
-            return res.status(404).send('Wish not found');
-        }
-
-        // Update view count
-        wish.views += 1;
-        wish.lastViewedAt = new Date();
-        await wish.save();
-
-        // Get preview image from template or use default
-        const previewImage = wish.templateId?.previewUrl || 
-            `${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/images/default-preview.jpg`;
-
-        // Send HTML page with meta tags
-        res.send(getWishPageHtml(wish, previewImage));
-    } catch (error) {
-        console.error('Error serving wish page:', error);
-        res.status(500).send('Error loading wish');
-    }
-});
-
-// API Routes for templates
-app.get('/api/templates', async (req, res) => {
-    try {
-        const templates = await Template.find().sort({ updatedAt: -1 });
-        res.json(templates);
-    } catch (error) {
-        console.error('Error fetching templates:', error);
-        res.status(500).json({ message: error.message });
-    }
-});
-
-app.get('/api/templates/:id', async (req, res) => {
-    try {
-        const template = await Template.findById(req.params.id);
-        if (template) {
-            res.json(template);
-        } else {
-            res.status(404).json({ message: 'Template not found' });
-        }
-    } catch (error) {
-        console.error('Error fetching template:', error);
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// Share API endpoint
-app.post('/api/share', async (req, res) => {
-    try {
-        const { templateId, recipientName, senderName, htmlContent } = req.body;
-        console.log('Share request:', { templateId, recipientName, senderName, htmlContent: !!htmlContent });
-
-        // Validate required fields
-        const missingFields = [];
-        if (!templateId) missingFields.push('templateId');
-        if (!recipientName) missingFields.push('recipientName');
-        if (!senderName) missingFields.push('senderName');
-        if (!htmlContent) missingFields.push('htmlContent');
-
-        if (missingFields.length > 0) {
-            return res.status(400).json({ 
-                error: 'Missing required fields',
-                missingFields,
-                received: { templateId, recipientName, senderName, hasHtml: !!htmlContent }
-            });
-        }
-
-        // Validate templateId format
-        if (!mongoose.Types.ObjectId.isValid(templateId)) {
-            return res.status(400).json({
-                error: 'Invalid templateId format',
-                received: templateId
-            });
-        }
-
-        // Check if template exists
-        const template = await Template.findById(templateId);
-        if (!template) {
-            return res.status(404).json({
-                error: 'Template not found',
-                templateId
-            });
-        }
-
-        // Generate unique short code
-        const shortCode = shortid.generate();
-
-        // Create shared wish
-        const sharedWish = new SharedWish({
-            shortCode,
-            templateId,
-            recipientName: recipientName.trim(),
-            senderName: senderName.trim(),
-            customizedHtml: htmlContent,
-            createdAt: new Date()
-        });
-
-        await sharedWish.save();
-
-        // Generate share URL
-        const baseUrl = process.env.BASE_URL || 'https://eventwishes.onrender.com';
-        const shareUrl = `${baseUrl}/wish/${shortCode}`;
-
-        res.json({
-            shareUrl,
-            shortCode,
-            message: 'Wish shared successfully'
-        });
-    } catch (error) {
-        console.error('Share error:', error);
-        res.status(500).json({ 
-            error: 'Failed to create share link',
-            details: error.message,
-            type: error.name
-        });
-    }
-});
-
-// Get shared wish
-app.get('/api/wish/:shortCode', async (req, res) => {
-    try {
-        const sharedWish = await SharedWish.findOne({ shortCode: req.params.shortCode })
-            .populate('templateId');
-
-        if (!sharedWish) {
-            return res.status(404).json({ error: 'Shared wish not found' });
-        }
-
-        // Update view count
-        sharedWish.views += 1;
-        sharedWish.lastViewedAt = new Date();
-        await sharedWish.save();
-
-        res.json(sharedWish);
-    } catch (error) {
-        console.error('Error fetching shared wish:', error);
-        res.status(500).json({ error: 'Failed to get shared wish' });
-    }
-});
