@@ -67,6 +67,9 @@ public class ResourceActivity extends AppCompatActivity {
         
         Log.d(TAG, "handleIntent: Action: " + action);
         Log.d(TAG, "handleIntent: Data URI: " + (data != null ? data.toString() : "null"));
+        Log.d(TAG, "handleIntent: Host: " + (data != null ? data.getHost() : "null"));
+        Log.d(TAG, "handleIntent: Scheme: " + (data != null ? data.getScheme() : "null"));
+        Log.d(TAG, "handleIntent: Path: " + (data != null ? data.getPath() : "null"));
 
         if (Intent.ACTION_VIEW.equals(action) && data != null) {
             try {

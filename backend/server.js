@@ -9,9 +9,37 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Error handling middleware
+const errorHandler = (err, req, res, next) => {
+    console.error('Error:', err.stack);
+    res.status(err.status || 500).json({
+        error: {
+            message: err.message || 'Internal Server Error',
+            status: err.status || 500
+        }
+    });
+};
+
+// Request validation middleware
+const validateRequest = (req, res, next) => {
+    if (req.method === 'POST' && !req.is('application/json')) {
+        return res.status(415).json({
+            error: {
+                message: 'Content-Type must be application/json',
+                status: 415
+            }
+        });
+    }
+    next();
+};
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(validateRequest);
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Debug logging middleware
 app.use((req, res, next) => {
@@ -42,29 +70,44 @@ const serveAssetLinks = (req, res) => {
 app.get('/assetlinks.json', serveAssetLinks);
 app.get('/.well-known/assetlinks.json', serveAssetLinks);
 
-// Serve static files from public directory with explicit path
-app.use(express.static(path.join(__dirname, 'public')));
-
 // Serve .well-known directory with correct content type
 app.use('/.well-known', express.static(path.join(__dirname, 'public/.well-known'), {
     setHeaders: (res, path) => {
         if (path.endsWith('assetlinks.json')) {
-            res.set('Content-Type', 'application/json');
+            res.setHeader('Content-Type', 'application/json');
         }
     }
 }));
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    });
+});
+
 // Start server first
 const server = app.listen(port, () => {
     console.log(`Server running on port ${port}`);
-    console.log('Try accessing:');
-    console.log(`http://localhost:${port}/assetlinks.json`);
-    console.log(`http://localhost:${port}/.well-known/assetlinks.json`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received. Closing server...');
+    server.close(() => {
+        console.log('Server closed.');
+        mongoose.connection.close(false, () => {
+            console.log('MongoDB connection closed.');
+            process.exit(0);
+        });
+    });
 });
 
 // Then try to connect to MongoDB
 console.log('Attempting to connect to MongoDB...');
-mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority')
+mongoose.connect(process.env.MONGODB_URI)
     .then(() => {
         console.log('Successfully connected to MongoDB Atlas!');
         
@@ -235,14 +278,15 @@ mongoose.connection.on('error', err => {
 });
 
 mongoose.connection.on('disconnected', () => {
-    console.log('MongoDB disconnected');
+    console.log('MongoDB disconnected. Attempting to reconnect...');
 });
 
-process.on('SIGINT', async () => {
-    await mongoose.connection.close();
-    server.close();
-    process.exit(0);
+mongoose.connection.on('reconnected', () => {
+    console.log('MongoDB reconnected');
 });
+
+// Add error handler middleware last
+app.use(errorHandler);
 
 // HTML template for wish page
 const getWishPageHtml = (wish, previewImage) => {

@@ -15,8 +15,18 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        debug {
+            storeFile file("${System.getProperty('user.home')}/.android/debug.keystore")
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
     buildTypes {
         debug {
+            signingConfig signingConfigs.debug
             buildConfigField "String", "BASE_URL", "\"https://eventwishes.onrender.com/\""
         }
         release {
@@ -34,6 +44,15 @@ android {
     buildFeatures {
         viewBinding true
         buildConfig true
+    }
+}
+
+// Add task to print signing info
+task printDebugSigningInfo {
+    doLast {
+        def debugKeystore = "${System.getProperty('user.home')}/.android/debug.keystore"
+        println "Debug keystore location: ${debugKeystore}"
+        println "Debug keystore exists: ${new File(debugKeystore).exists()}"
     }
 }
 

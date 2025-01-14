@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const shortid = require('shortid');
-const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -45,14 +44,6 @@ process.on('SIGINT', async () => {
     await mongoose.connection.close();
     process.exit(0);
 });
-
-// Optional: Serve a specific route for /.well-known/assetlinks.json explicitly
-app.get('/.well-known/assetlinks.json', (req, res) => {
-  res.sendFile(path.join(__dirname, '.well-known', 'assetlinks.json'));
-});
-
-// Serve static files from the root directory
-app.use(express.static(path.join(__dirname)));
 
 // HTML template for wish page
 const getWishPageHtml = (wish, previewImage) => {

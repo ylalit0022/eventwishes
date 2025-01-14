@@ -39,6 +39,7 @@
                     android:host="eventwishes.onrender.com"
                     android:pathPrefix="/wish/" />
             </intent-filter>
+
         </activity>
 
         <provider

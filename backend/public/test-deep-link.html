@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Deep Links</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .link-button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px 0;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .note {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>EventWishes Deep Link Test</h1>
+    
+    <div class="note">
+        <h3>Test Links:</h3>
+        <p>Click the links below to test deep linking to the EventWishes app:</p>
+    </div>
+
+    <a href="https://eventwishes.onrender.com/wish/4e8K8f6Mz" class="link-button">
+        Open Wish in App
+    </a>
+    <br>
+    <a href="intent://eventwishes.onrender.com/wish/4e8K8f6Mz#Intent;scheme=https;package=com.ds.eventwishes;S.browser_fallback_url=https://eventwishes.onrender.com/wish/4e8K8f6Mz;end" class="link-button">
+        Open with Intent URL
+    </a>
+
+    <div class="note">
+        <h3>Debug Information:</h3>
+        <p>Package Name: com.ds.eventwishes</p>
+        <p>Host: eventwishes.onrender.com</p>
+        <p>Path: /wish/4e8K8f6Mz</p>
+        <p>Full URL: https://eventwishes.onrender.com/wish/4e8K8f6Mz</p>
+    </div>
+
+    <script>
+        // Add click handlers to log attempts
+        document.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                console.log('Attempting to open:', this.href);
+            });
+        });
+    </script>
+</body>
+</html>

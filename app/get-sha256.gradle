@@ -1,0 +1,23 @@
+task printSigningReport {
+    doLast {
+        android.signingConfigs.each { config ->
+            println "Config name: ${config.name}"
+            if (config.storeFile != null) {
+                println "Keystore file: ${config.storeFile}"
+                println "Keystore password: ${config.storePassword}"
+                println "Key alias: ${config.keyAlias}"
+                println "Key password: ${config.keyPassword}"
+            }
+        }
+        
+        android.applicationVariants.all { variant ->
+            variant.outputs.all { output ->
+                output.outputFile.each { file ->
+                    if (file.name.endsWith('.apk')) {
+                        println "APK: ${file}"
+                    }
+                }
+            }
+        }
+    }
+}
