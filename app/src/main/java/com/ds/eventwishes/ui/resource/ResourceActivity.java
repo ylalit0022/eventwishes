@@ -116,8 +116,8 @@ public class ResourceActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             NetworkCapabilities capabilities = cm.getNetworkCapabilities(cm.getActiveNetwork());
             return capabilities != null &&
-                   capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                   capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
         } else {
             NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
             return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
@@ -215,43 +215,40 @@ public class ResourceActivity extends AppCompatActivity {
             binding.contentContainer.setVisibility(View.VISIBLE);
             binding.errorView.getRoot().setVisibility(View.GONE);
 
-            // Set recipient name
+            // Get recipient and sender names
             String recipientName = wish.getRecipientName();
-            if (recipientName != null && !recipientName.trim().isEmpty()) {
-                binding.recipientText.setVisibility(View.VISIBLE);
-                binding.recipientText.setText(getString(R.string.to_recipient, recipientName.trim()));
-            } else {
-                binding.recipientText.setVisibility(View.GONE);
-            }
-
-            // Set sender name
             String senderName = wish.getSenderName();
-            if (senderName != null && !senderName.trim().isEmpty()) {
-                binding.senderText.setVisibility(View.VISIBLE);
-                binding.senderText.setText(getString(R.string.from_sender, senderName.trim()));
-            } else {
-                binding.senderText.setVisibility(View.GONE);
-            }
+
+            // Replace placeholders in HTML content
+            String customizedHtml = wish.getCustomizedHtml()
+                    .replace("{{recipientName}}", recipientName != null ? recipientName.trim() : "")
+                    .replace("{{senderName}}", senderName != null ? senderName.trim() : "");
+
+            // Log the customized HTML for debugging
+            Log.d(TAG, "displayWish: Customized HTML with names: " + customizedHtml);
 
             // Wrap HTML in proper structure and add viewport meta tag
             String htmlContent =
-                "<!DOCTYPE html><html><head>" +
-                "<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>" +
-                "<style>" +
-                    "body { margin: 0; padding: 16px; word-wrap: break-word; font-family: Arial, sans-serif; }" +
-                    "img { max-width: 100%; height: auto; display: block; margin: 0 auto; }" +
-                    "@media (prefers-color-scheme: dark) { body { background-color: #121212; color: #FFFFFF; } }" +
-                "</style>" +
-                "</head><body>" +
-                wish.getCustomizedHtml() +
-                "</body></html>";
+                    "<!DOCTYPE html><html><head>" +
+                            "<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>" +
+                            "<style>" +
+                            "body { margin: 0; padding: 16px; word-wrap: break-word; font-family: Arial, sans-serif; }" +
+                            "img { max-width: 100%; height: auto; display: block; margin: 0 auto; }" +
+                            ".content { padding: 16px; }" +
+                            "@media (prefers-color-scheme: dark) {" +
+                            "  body { background-color: #121212; color: #FFFFFF; }" +
+                            "}" +
+                            "</style>" +
+                            "</head><body>" +
+                            "<div class='content'>" + customizedHtml + "</div>" +
+                            "</body></html>";
 
             binding.webView.loadDataWithBaseURL(
-                null,
-                htmlContent,
-                "text/html",
-                "UTF-8",
-                null
+                    null,
+                    htmlContent,
+                    "text/html",
+                    "UTF-8",
+                    null
             );
 
             Log.d(TAG, "displayWish: Content loaded successfully");
