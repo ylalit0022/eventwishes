@@ -110,11 +110,12 @@
     <string name="no">no</string>
     <string name="yes">yes</string>
 
-    <string name="error_no_internet">error_no_internet</string>
-    <string name="error_invalid_link">error_invalid_link</string>
+    <string name="error_invalid_link">Invalid or expired link</string>
+    <string name="error_no_internet">No internet connection</string>
 
-
-
-
+    <!-- Resource Activity -->
+    <string name="to_recipient">To: %1$s</string>
+    <string name="from_sender">From: %1$s</string>
+    <string name="unknown">Unknown</string>
 
 </resources>

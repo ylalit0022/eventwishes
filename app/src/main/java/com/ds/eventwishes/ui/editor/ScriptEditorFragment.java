@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,6 +29,7 @@ import com.ds.eventwishes.api.ApiClient;
 import com.ds.eventwishes.api.ShareRequest;
 import com.ds.eventwishes.api.ShareResponse;
 
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
@@ -324,11 +326,19 @@ public class ScriptEditorFragment extends Fragment {
                         // Save share URL for later use
                         lastShareUrl = shareUrl;
                         
-                        // Show share options dialog
-                        showShareOptions();
-                        
-                        // Log success analytics
-                        analyticsManager.logShareEvent(templateId, "created");
+                        // Share directly to WhatsApp
+                        try {
+                            Intent intent = new Intent(Intent.ACTION_SEND);
+                            intent.setType("text/plain");
+                            intent.setPackage("com.whatsapp");
+                            intent.putExtra(Intent.EXTRA_TEXT, shareText);
+                            
+                            startActivity(intent);
+                            analyticsManager.logShareEvent(templateId, "whatsapp");
+                        } catch (android.content.ActivityNotFoundException e) {
+                            // WhatsApp not installed, open Play Store
+                            openPlayStore("com.whatsapp");
+                        }
                     } else {
                         String error = "Error: ";
                         try {
@@ -360,7 +370,7 @@ public class ScriptEditorFragment extends Fragment {
                 }
             });
         } catch (Exception e) {
-            android.util.Log.e("ScriptEditor", "Share general error", e);
+            Log.e("ScriptEditor", "Share general error", e);
             progressBar.setVisibility(View.GONE);
             Snackbar.make(requireView(), R.string.share_error, Snackbar.LENGTH_SHORT).show();
         }

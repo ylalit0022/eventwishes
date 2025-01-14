@@ -10,17 +10,20 @@ const sharedWishSchema = new mongoose.Schema({
     templateId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Template',
-        required: true
+        required: true,
+        index: true
     },
     recipientName: {
         type: String,
         required: true,
-        trim: true
+        trim: true,
+        index: true
     },
     senderName: {
         type: String,
         required: true,
-        trim: true
+        trim: true,
+        index: true
     },
     customizedHtml: {
         type: String,
@@ -31,6 +34,11 @@ const sharedWishSchema = new mongoose.Schema({
         default: Date.now,
         index: { expires: 7776000 } // 90 days in seconds
     },
+    lastSharedAt: {
+        type: Date,
+        default: Date.now,
+        index: true
+    },
     views: {
         type: Number,
         default: 0
@@ -38,6 +46,11 @@ const sharedWishSchema = new mongoose.Schema({
     lastViewedAt: {
         type: Date
     }
+}, {
+    timestamps: true
 });
+
+// Compound index for finding duplicate wishes
+sharedWishSchema.index({ templateId: 1, recipientName: 1, senderName: 1 });
 
 module.exports = mongoose.model('SharedWish', sharedWishSchema);

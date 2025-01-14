@@ -9,8 +9,8 @@ public class SharedWish {
     @SerializedName("shortCode")
     private String shortCode;
 
-    @SerializedName("template")
-    private Template template;
+    @SerializedName("templateId")
+    private String templateId;
 
     @SerializedName("recipientName")
     private String recipientName;
@@ -47,12 +47,12 @@ public class SharedWish {
         this.shortCode = shortCode;
     }
 
-    public Template getTemplate() {
-        return template;
+    public String getTemplateId() {
+        return templateId;
     }
 
-    public void setTemplate(Template template) {
-        this.template = template;
+    public void setTemplateId(String templateId) {
+        this.templateId = templateId;
     }
 
     public String getRecipientName() {

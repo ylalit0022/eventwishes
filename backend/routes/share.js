@@ -27,20 +27,49 @@ router.post('/', async (req, res) => {
             return res.status(404).json({ error: 'Template not found' });
         }
 
-        // Generate unique short code
-        const shortCode = shortid.generate();
-
-        // Create shared wish with template's HTML content
-        const sharedWish = new SharedWish({
-            shortCode,
+        // Check if a wish with same template and names already exists
+        const existingWish = await SharedWish.findOne({
             templateId,
             recipientName: recipientName.trim(),
-            senderName: senderName.trim(),
-            customizedHtml: template.htmlContent, // Use template's HTML content
-            createdAt: new Date()
+            senderName: senderName.trim()
         });
 
-        await sharedWish.save();
+        let shortCode;
+        let sharedWish;
+
+        if (existingWish) {
+            // Use existing wish
+            shortCode = existingWish.shortCode;
+            sharedWish = existingWish;
+            
+            // Update timestamp to show it was shared again
+            existingWish.lastSharedAt = new Date();
+            await existingWish.save();
+            
+            console.log('Using existing wish:', shortCode);
+        } else {
+            // Generate unique short code
+            shortCode = shortid.generate();
+            
+            // Ensure shortCode is unique
+            while (await SharedWish.findOne({ shortCode })) {
+                shortCode = shortid.generate();
+            }
+
+            // Create new shared wish
+            sharedWish = new SharedWish({
+                shortCode,
+                templateId,
+                recipientName: recipientName.trim(),
+                senderName: senderName.trim(),
+                customizedHtml: template.htmlContent,
+                createdAt: new Date(),
+                lastSharedAt: new Date()
+            });
+
+            await sharedWish.save();
+            console.log('Created new wish:', shortCode);
+        }
 
         // Generate share URL
         const shareUrl = `${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/wish/${shortCode}`;
@@ -48,7 +77,8 @@ router.post('/', async (req, res) => {
         res.json({
             shareUrl,
             shortCode,
-            message: 'Wish shared successfully'
+            message: 'Wish shared successfully',
+            isExisting: !!existingWish
         });
     } catch (error) {
         console.error('Share error:', error);
@@ -74,36 +104,34 @@ router.post('/', async (req, res) => {
 // Get shared wish by shortCode
 router.get('/:shortCode', async (req, res) => {
     try {
-        const sharedWish = await SharedWish.findOne({ shortCode: req.params.shortCode })
-            .populate('templateId', 'name description');
-
-        if (!sharedWish) {
-            return res.status(404).json({ error: 'Shared wish not found' });
+        const shortCode = req.params.shortCode;
+        
+        // Find the shared wish
+        const wish = await SharedWish.findOne({ shortCode });
+        if (!wish) {
+            return res.status(404).json({ error: 'Wish not found' });
         }
 
-        // Update view count if needed
-        if (!sharedWish.views) sharedWish.views = 0;
-        sharedWish.views += 1;
-        sharedWish.lastViewedAt = new Date();
-        await sharedWish.save();
+        // Update view count and last viewed time
+        wish.views = (wish.views || 0) + 1;
+        wish.lastViewedAt = new Date();
+        await wish.save();
 
-        // Format response with all necessary fields
-        const response = {
-            id: sharedWish._id,
-            shortCode: sharedWish.shortCode,
-            recipientName: sharedWish.recipientName,
-            senderName: sharedWish.senderName,
-            customizedHtml: sharedWish.customizedHtml, 
-            views: sharedWish.views,
-            createdAt: sharedWish.createdAt,
-            lastViewedAt: sharedWish.lastViewedAt,
-            template: sharedWish.templateId
-        };
-
-        res.json(response);
+        // Return wish data
+        res.json({
+            id: wish._id,
+            shortCode: wish.shortCode,
+            templateId: wish.templateId,
+            recipientName: wish.recipientName,
+            senderName: wish.senderName,
+            customizedHtml: wish.customizedHtml,
+            views: wish.views,
+            createdAt: wish.createdAt,
+            lastViewedAt: wish.lastViewedAt
+        });
     } catch (error) {
         console.error('Error fetching shared wish:', error);
-        res.status(500).json({ error: 'Failed to get shared wish' });
+        res.status(500).json({ error: 'Failed to fetch shared wish' });
     }
 });
 

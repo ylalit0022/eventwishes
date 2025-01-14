@@ -223,11 +223,38 @@ public class ResourceActivity extends AppCompatActivity {
             // Base URL for relative paths in HTML
             String baseUrl = "https://eventwishes.onrender.com";
             
+            // Show recipient and sender names
+            String recipientName = wish.getRecipientName();
+            String senderName = wish.getSenderName();
+            
+            Log.d(TAG, "displayWish: Recipient: " + recipientName);
+            Log.d(TAG, "displayWish: Sender: " + senderName);
+            
+            // Set recipient name
+            if (recipientName != null && !recipientName.trim().isEmpty()) {
+                binding.recipientText.setVisibility(View.VISIBLE);
+                binding.recipientText.setText(getString(R.string.to_recipient, recipientName.trim()));
+            } else {
+                binding.recipientText.setVisibility(View.GONE);
+            }
+            
+            // Set sender name
+            if (senderName != null && !senderName.trim().isEmpty()) {
+                binding.senderText.setVisibility(View.VISIBLE);
+                binding.senderText.setText(getString(R.string.from_sender, senderName.trim()));
+            } else {
+                binding.senderText.setVisibility(View.GONE);
+            }
+            
             // Wrap HTML in proper structure and add viewport meta tag
             String htmlContent = String.format(
                 "<!DOCTYPE html><html><head>" +
                 "<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>" +
-                "<style>body{margin:0;padding:16px;word-wrap:break-word;}</style>" +
+                "<style>" +
+                    "body { margin: 0; padding: 16px; word-wrap: break-word; font-family: Arial, sans-serif; }" +
+                    "img { max-width: 100%; height: auto; display: block; margin: 0 auto; }" +
+                    "@media (prefers-color-scheme: dark) { body { background-color: #121212; color: #ffffff; } }" +
+                "</style>" +
                 "</head><body>%s</body></html>",
                 wish.getCustomizedHtml()
             );
@@ -241,15 +268,8 @@ public class ResourceActivity extends AppCompatActivity {
                 null
             );
             
-            binding.recipientText.setText(String.format("To: %s", 
-                wish.getRecipientName() != null ? wish.getRecipientName() : "Unknown"));
-            binding.senderText.setText(String.format("From: %s", 
-                wish.getSenderName() != null ? wish.getSenderName() : "Unknown"));
-            
             // Add debug logging
             Log.d(TAG, "displayWish: Content loaded successfully");
-            Log.d(TAG, "displayWish: RecipientName: " + wish.getRecipientName());
-            Log.d(TAG, "displayWish: SenderName: " + wish.getSenderName());
             
         } catch (Exception e) {
             Log.e(TAG, "displayWish: Error displaying wish", e);
