@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const path = require('path');
 const shortid = require('shortid');
 require('dotenv').config();
 
@@ -11,8 +12,20 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from public directory
+app.use(express.static('public'));
+
+// Serve .well-known directory with correct content type
+app.use('/.well-known', express.static(path.join(__dirname, 'public/.well-known'), {
+    setHeaders: (res, path) => {
+        if (path.endsWith('assetlinks.json')) {
+            res.set('Content-Type', 'application/json');
+        }
+    }
+}));
+
 // MongoDB Atlas connection
-const uri = 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
+const uri = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
 
 console.log('Attempting to connect to MongoDB...');
 
@@ -180,8 +193,11 @@ const getWishPageHtml = (wish, previewImage) => {
 const Template = require('./models/template.js');
 const SharedWish = require('./models/sharedWish.js');
 
-// Serve static files
-app.use(express.static('public'));
+// Import routes
+const shareRouter = require('./routes/share');
+
+// Use routes
+app.use('/api/share', shareRouter);
 
 // Serve wish page
 app.get('/wish/:shortCode', async (req, res) => {

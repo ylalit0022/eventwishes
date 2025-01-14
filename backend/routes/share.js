@@ -43,14 +43,35 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Get shared wish by ID
+// Get shared wish by ID - supports both /share/:id and /wish/:id
 router.get('/:id', async (req, res) => {
     try {
-        const sharedWish = await SharedWish.findById(req.params.id);
+        const sharedWish = await SharedWish.findById(req.params.id)
+            .populate('templateId', 'name description');
+
         if (!sharedWish) {
             return res.status(404).json({ error: 'Shared wish not found' });
         }
-        res.json(sharedWish);
+
+        // Update view count and last viewed timestamp
+        sharedWish.views = (sharedWish.views || 0) + 1;
+        sharedWish.lastViewedAt = new Date();
+        await sharedWish.save();
+
+        // Format response for mobile app
+        const response = {
+            id: sharedWish._id,
+            shortCode: sharedWish._id, // Using _id as shortCode for simplicity
+            recipientName: sharedWish.recipientName,
+            senderName: sharedWish.senderName,
+            customizedHtml: sharedWish.htmlContent,
+            views: sharedWish.views,
+            createdAt: sharedWish.createdAt,
+            lastViewedAt: sharedWish.lastViewedAt,
+            template: sharedWish.templateId
+        };
+
+        res.json(response);
     } catch (error) {
         console.error('Get shared wish error:', error);
         res.status(500).json({ error: 'Failed to get shared wish' });

@@ -110,5 +110,11 @@
     <string name="no">no</string>
     <string name="yes">yes</string>
 
+    <string name="error_no_internet">error_no_internet</string>
+    <string name="error_invalid_link">error_invalid_link</string>
+
+
+
+
 
 </resources>

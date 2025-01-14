@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="true"
@@ -15,42 +16,17 @@
         android:theme="@style/Theme.EventWishes.Splash"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
-        
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="com.ds.eventwishes.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.EventWishes">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
-            <!-- Deep Link handling -->
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="http"
-                    android:host="localhost"
-                    android:port="3000"
-                    android:pathPattern="/share/.*" />
-                <data
-                    android:scheme="https"
-                    android:host="your-production-domain.com"
-                    android:pathPattern="/share/.*" />
-            </intent-filter>
         </activity>
-
+        
         <activity
             android:name=".ui.resource.ResourceActivity"
             android:exported="true">
@@ -61,9 +37,19 @@
                 <data
                     android:scheme="https"
                     android:host="eventwishes.onrender.com"
-                    android:pathPattern="/wish/.*" />
+                    android:pathPrefix="/wish/" />
             </intent-filter>
         </activity>
-    </application>
 
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.ds.eventwishes.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
 </manifest>
