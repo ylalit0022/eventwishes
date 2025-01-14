@@ -35,7 +35,7 @@ public class ResourceActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "onCreate: Starting ResourceActivity");
-        
+
         binding = ActivityResourceBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -64,7 +64,7 @@ public class ResourceActivity extends AppCompatActivity {
 
         String action = intent.getAction();
         Uri data = intent.getData();
-        
+
         Log.d(TAG, "handleIntent: Action: " + action);
         Log.d(TAG, "handleIntent: Data URI: " + (data != null ? data.toString() : "null"));
         Log.d(TAG, "handleIntent: Host: " + (data != null ? data.getHost() : "null"));
@@ -75,25 +75,25 @@ public class ResourceActivity extends AppCompatActivity {
             try {
                 String path = data.getPath();
                 Log.d(TAG, "handleIntent: Full path: " + path);
-                
+
                 if (path != null && path.startsWith("/wish/")) {
                     String shortCode = path.substring("/wish/".length());
                     Log.d(TAG, "handleIntent: Extracted shortCode: " + shortCode);
-                    
+
                     if (shortCode.isEmpty()) {
                         Log.e(TAG, "handleIntent: Empty shortCode");
                         showError(getString(R.string.error_invalid_link));
                         return;
                     }
-                    
+
                     currentShortCode = shortCode;
-                    
+
                     if (!isNetworkAvailable()) {
                         Log.e(TAG, "handleIntent: No network connection");
                         showError(getString(R.string.error_no_internet));
                         return;
                     }
-                    
+
                     loadSharedWish(shortCode);
                 } else {
                     Log.e(TAG, "handleIntent: Invalid path format: " + path);
@@ -115,7 +115,7 @@ public class ResourceActivity extends AppCompatActivity {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             NetworkCapabilities capabilities = cm.getNetworkCapabilities(cm.getActiveNetwork());
-            return capabilities != null && 
+            return capabilities != null &&
                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
         } else {
@@ -133,7 +133,7 @@ public class ResourceActivity extends AppCompatActivity {
         webSettings.setBuiltInZoomControls(true);
         webSettings.setDisplayZoomControls(false);
         webSettings.setDefaultTextEncodingName("UTF-8");
-        
+
         // Enable mixed content if needed
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
@@ -210,69 +210,54 @@ public class ResourceActivity extends AppCompatActivity {
     }
 
     private void displayWish(SharedWish wish) {
-        try {
-            if (wish == null || wish.getCustomizedHtml() == null || wish.getCustomizedHtml().trim().isEmpty()) {
-                Log.e(TAG, "displayWish: Missing customizedHtml");
-                showError(getString(R.string.error_loading));
-                return;
-            }
-
-            Log.d(TAG, "displayWish: Loading HTML content");
+        if (wish != null) {
+            hideLoading();
             binding.contentContainer.setVisibility(View.VISIBLE);
-            
-            // Base URL for relative paths in HTML
-            String baseUrl = "https://eventwishes.onrender.com";
-            
-            // Show recipient and sender names
-            String recipientName = wish.getRecipientName();
-            String senderName = wish.getSenderName();
-            
-            Log.d(TAG, "displayWish: Recipient: " + recipientName);
-            Log.d(TAG, "displayWish: Sender: " + senderName);
-            
+            binding.errorView.getRoot().setVisibility(View.GONE);
+
             // Set recipient name
+            String recipientName = wish.getRecipientName();
             if (recipientName != null && !recipientName.trim().isEmpty()) {
                 binding.recipientText.setVisibility(View.VISIBLE);
                 binding.recipientText.setText(getString(R.string.to_recipient, recipientName.trim()));
             } else {
                 binding.recipientText.setVisibility(View.GONE);
             }
-            
+
             // Set sender name
+            String senderName = wish.getSenderName();
             if (senderName != null && !senderName.trim().isEmpty()) {
                 binding.senderText.setVisibility(View.VISIBLE);
                 binding.senderText.setText(getString(R.string.from_sender, senderName.trim()));
             } else {
                 binding.senderText.setVisibility(View.GONE);
             }
-            
+
             // Wrap HTML in proper structure and add viewport meta tag
-            String htmlContent = String.format(
+            String htmlContent =
                 "<!DOCTYPE html><html><head>" +
                 "<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>" +
                 "<style>" +
                     "body { margin: 0; padding: 16px; word-wrap: break-word; font-family: Arial, sans-serif; }" +
                     "img { max-width: 100%; height: auto; display: block; margin: 0 auto; }" +
-                    "@media (prefers-color-scheme: dark) { body { background-color: #121212; color: #ffffff; } }" +
+                    "@media (prefers-color-scheme: dark) { body { background-color: #121212; color: #FFFFFF; } }" +
                 "</style>" +
-                "</head><body>%s</body></html>",
-                wish.getCustomizedHtml()
-            );
-            
-            // Load the HTML content
+                "</head><body>" +
+                wish.getCustomizedHtml() +
+                "</body></html>";
+
             binding.webView.loadDataWithBaseURL(
-                baseUrl,
+                null,
                 htmlContent,
                 "text/html",
                 "UTF-8",
                 null
             );
-            
-            // Add debug logging
+
             Log.d(TAG, "displayWish: Content loaded successfully");
-            
-        } catch (Exception e) {
-            Log.e(TAG, "displayWish: Error displaying wish", e);
+
+        } else {
+            Log.e(TAG, "displayWish: Error displaying wish (null wish)");
             showError(getString(R.string.error_loading));
         }
     }
@@ -285,6 +270,11 @@ public class ResourceActivity extends AppCompatActivity {
         binding.contentContainer.setVisibility(View.GONE);
         binding.progressBar.setVisibility(View.GONE);
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private void hideLoading() {
+        binding.progressBar.setVisibility(View.GONE);
+        binding.contentContainer.setVisibility(View.VISIBLE);
     }
 
     @Override
