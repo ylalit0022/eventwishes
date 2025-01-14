@@ -121,14 +121,16 @@ mongoose.connect(process.env.MONGODB_URI)
         // Use routes
         app.use('/api/share', shareRouter);
         
-        // Serve wish page
-        app.get('/wish/:shortCode', async (req, res) => {
+        // Serve wish page and API endpoint
+        const serveWish = async (req, res, isApi = false) => {
             try {
                 const wish = await SharedWish.findOne({ shortCode: req.params.shortCode })
                     .populate('templateId');
 
                 if (!wish) {
-                    return res.status(404).send('Wish not found');
+                    return isApi 
+                        ? res.status(404).json({ error: 'Wish not found' })
+                        : res.status(404).send('Wish not found');
                 }
 
                 // Update view count
@@ -136,17 +138,30 @@ mongoose.connect(process.env.MONGODB_URI)
                 wish.lastViewedAt = new Date();
                 await wish.save();
 
-                // Get preview image from template or use default
-                const previewImage = wish.templateId?.previewUrl || 
-                    `${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/images/default-preview.jpg`;
+                if (isApi) {
+                    // Return JSON for API requests
+                    return res.json(wish);
+                } else {
+                    // Get preview image from template or use default
+                    const previewImage = wish.templateId?.previewUrl || 
+                        `${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/images/default-preview.jpg`;
 
-                // Send HTML page with meta tags
-                res.send(getWishPageHtml(wish, previewImage));
+                    // Send HTML page with meta tags
+                    res.send(getWishPageHtml(wish, previewImage));
+                }
             } catch (error) {
-                console.error('Error serving wish page:', error);
-                res.status(500).send('Error loading wish');
+                console.error('Error serving wish:', error);
+                return isApi
+                    ? res.status(500).json({ error: 'Error loading wish' })
+                    : res.status(500).send('Error loading wish');
             }
-        });
+        };
+
+        // Web page endpoint
+        app.get('/wish/:shortCode', (req, res) => serveWish(req, res, false));
+        
+        // API endpoint
+        app.get('/api/share/:shortCode', (req, res) => serveWish(req, res, true));
         
         // API Routes for templates
         app.get('/api/templates', async (req, res) => {

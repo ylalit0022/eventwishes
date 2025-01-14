@@ -29,7 +29,8 @@
         
         <activity
             android:name=".ui.resource.ResourceActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.EventWishes">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -39,7 +40,6 @@
                     android:host="eventwishes.onrender.com"
                     android:pathPrefix="/wish/" />
             </intent-filter>
-
         </activity>
 
         <provider
