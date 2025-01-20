@@ -185,7 +185,10 @@ const startServer = async () => {
         // API Routes for templates
         app.get('/api/templates', async (req, res) => {
             try {
-                const templates = await Template.find().sort({ updatedAt: -1 });
+                const templates = await Template.find({
+                    status: true,
+                    isActive: true
+                }).sort({ updatedAt: -1 });
                 res.json(templates);
             } catch (error) {
                 console.error('Error fetching templates:', error);
@@ -210,8 +213,12 @@ const startServer = async () => {
         // Share API endpoint
         app.post('/api/share', async (req, res) => {
             try {
-                const { templateId, recipientName, senderName, htmlContent } = req.body;
-                console.log('Share request:', { templateId, recipientName, senderName, htmlContent: !!htmlContent });
+                const { templateId, recipientName, senderName, htmlContent, cssContent, jsContent, sharedVia } = req.body;
+                console.log('Share request:', { templateId, recipientName, senderName, htmlContent: !!htmlContent,
+                cssContent: !!cssContent,
+                jsContent: !!jsContent,
+                sharedVia 
+                });
 
                 // Validate required fields
                 const missingFields = [];
@@ -219,12 +226,14 @@ const startServer = async () => {
                 if (!recipientName) missingFields.push('recipientName');
                 if (!senderName) missingFields.push('senderName');
                 if (!htmlContent) missingFields.push('htmlContent');
+                if (!sharedVia) missingFields.push('sharedVia');
+
 
                 if (missingFields.length > 0) {
                     return res.status(400).json({ 
                         error: 'Missing required fields',
                         missingFields,
-                        received: { templateId, recipientName, senderName, hasHtml: !!htmlContent }
+                        received: { templateId, recipientName, senderName, hasHtml: !!htmlContent, sharedVia }
                     });
                 }
 
@@ -255,6 +264,10 @@ const startServer = async () => {
                     recipientName: recipientName.trim(),
                     senderName: senderName.trim(),
                     customizedHtml: htmlContent,
+                    cssContent: cssContent || '',  // Add CSS content
+                    jsContent: jsContent || '',    // Add JS content
+                    sharedVia: sharedVia || 'LINK', // Add share platform
+
                     createdAt: new Date()
                 });
 
