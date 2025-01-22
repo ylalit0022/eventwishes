@@ -6,6 +6,8 @@
     <string name="title_home">Home</string>
     <string name="title_my_templates">My Templates</string>
     <string name="title_create">Create</string>
+    <string name="title_history">History</string>
+    <string name="title_more">More</string>
     <string name="title_reminders">Reminders</string>
     <string name="title_editor">Script Editor</string>
     <string name="title_profile">Profile</string>
@@ -104,6 +106,15 @@
     <string name="cancel">Cancel</string>
     <string name="ok">OK</string>
     <string name="done">Done</string>
+    <string name="clear">Clear</string>
+
+    <!-- History -->
+    <string name="history_title">Wish History</string>
+    <string name="search_history_hint">Search wishes…</string>
+    <string name="clear_history">Clear History</string>
+    <string name="clear_history_title">Clear History?</string>
+    <string name="clear_history_message">Are you sure you want to clear all wish history? This action cannot be undone.</string>
+    <string name="no_history_items">No wishes shared yet</string>
 
     <string name="exit_dialog_title">Are You Sure?</string>
     <string name="exit_dialog_message">Do you want to exit?</string>

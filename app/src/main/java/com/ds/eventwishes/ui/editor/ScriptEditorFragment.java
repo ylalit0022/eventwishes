@@ -1,13 +1,18 @@
 package com.ds.eventwishes.ui.editor;
 
+import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,6 +24,7 @@ import android.webkit.WebViewClient;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
+import com.ds.eventwishes.models.WishHistoryItem;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.snackbar.Snackbar;
@@ -29,9 +35,13 @@ import com.ds.eventwishes.api.ApiClient;
 import com.ds.eventwishes.api.ShareRequest;
 import com.ds.eventwishes.api.ShareResponse;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -313,30 +323,53 @@ public class ScriptEditorFragment extends Fragment {
                     progressBar.setVisibility(View.GONE);
                     
                     if (response.isSuccessful() && response.body() != null) {
-                        String shareUrl = response.body().getShareUrl();
-                        String playStoreUrl = "https://play.google.com/store/apps/details?id=" + requireContext().getPackageName();
+                        ShareResponse shareResponse = response.body();
+                        lastShareUrl = shareResponse.getShareUrl();
                         
-                        String shareText = String.format("🎉 Special Wish for you!\n\n" +
-                            "To: %s\n" +
-                            "From: %s\n\n" +
-                            "View your personalized wish here:\n%s\n\n" +
-                            "Create your own wishes with Event Wishes:\n%s",
-                            recipient, sender, shareUrl, playStoreUrl);
-                            
-                        // Save share URL for later use
-                        lastShareUrl = shareUrl;
+                        // Log the response details
+                        Log.d("ScriptEditor", "Share response received:");
+                        Log.d("ScriptEditor", "  ShareUrl: " + shareResponse.getShareUrl());
+                        Log.d("ScriptEditor", "  ShortUrl: " + shareResponse.getShortUrl());
+                        Log.d("ScriptEditor", "  PreviewContent length: " + 
+                            (shareResponse.getPreviewContent() != null ? shareResponse.getPreviewContent().length() : 0));
+                        Log.d("ScriptEditor", "  SocialPreviewHtml length: " + 
+                            (shareResponse.getSocialPreviewHtml() != null ? shareResponse.getSocialPreviewHtml().length() : 0));
                         
-                        // Share directly to WhatsApp
+                        // Since we don't get preview from API, capture current WebView content
+                        webView.measure(View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY),
+                                     View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY));
+                        webView.layout(0, 0, webView.getMeasuredWidth(), webView.getMeasuredHeight());
+                        webView.setDrawingCacheEnabled(true);
+                        webView.buildDrawingCache();
+                        Bitmap bitmap = webView.getDrawingCache();
+                        
+                        if (bitmap != null) {
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos);
+                            byte[] imageBytes = baos.toByteArray();
+                            String base64Image = Base64.encodeToString(imageBytes, Base64.DEFAULT);
+                            shareResponse.setPreviewContent("data:image/jpeg;base64," + base64Image);
+                            Log.d("ScriptEditor", "Generated preview image from current WebView content, size: " + 
+                                imageBytes.length + " bytes");
+                        } else {
+                            Log.w("ScriptEditor", "Failed to capture WebView content");
+                        }
+                        webView.setDrawingCacheEnabled(false);
+                        
+                        saveToHistory(shareResponse);
+                        
+                        // Share to WhatsApp
                         try {
-                            Intent intent = new Intent(Intent.ACTION_SEND);
-                            intent.setType("text/plain");
-                            intent.setPackage("com.whatsapp");
-                            intent.putExtra(Intent.EXTRA_TEXT, shareText);
-                            
-                            startActivity(intent);
-                            analyticsManager.logShareEvent(templateId, "whatsapp");
-                        } catch (android.content.ActivityNotFoundException e) {
-                            // WhatsApp not installed, open Play Store
+                            Intent whatsappIntent = new Intent(Intent.ACTION_SEND);
+                            whatsappIntent.setType("text/plain");
+                            whatsappIntent.setPackage("com.whatsapp");
+                            String shareText = getString(R.string.share_message) + "\n" + lastShareUrl + 
+                                "\n\nCreate your own wishes with Event Wishes:\n" +
+                                "https://play.google.com/store/apps/details?id=com.ds.eventwishes";
+                            whatsappIntent.putExtra(Intent.EXTRA_TEXT, shareText);
+                            startActivity(whatsappIntent);
+                            analyticsManager.logShare("whatsapp");
+                        } catch (ActivityNotFoundException e) {
                             openPlayStore("com.whatsapp");
                         }
                     } else {
@@ -349,10 +382,7 @@ public class ScriptEditorFragment extends Fragment {
                             error += "Unknown error occurred";
                         }
                         Log.e("ScriptEditorFragment", error);
-                        
-                        // Log error analytics
                         analyticsManager.logError("share_creation", error);
-                        
                         Snackbar.make(requireView(), error, Snackbar.LENGTH_LONG).show();
                     }
                 }
@@ -362,10 +392,7 @@ public class ScriptEditorFragment extends Fragment {
                     progressBar.setVisibility(View.GONE);
                     String errorMessage = "Failed to create share: " + t.getMessage();
                     Log.e("ScriptEditorFragment", errorMessage, t);
-                    
-                    // Log error analytics
                     analyticsManager.logError("share_network", t.getMessage());
-                    
                     Snackbar.make(requireView(), errorMessage, Snackbar.LENGTH_LONG).show();
                 }
             });
@@ -390,8 +417,12 @@ public class ScriptEditorFragment extends Fragment {
     }
     
     private void shareToFacebook() {
+        if (lastShareUrl == null || lastShareUrl.isEmpty()) {
+            Snackbar.make(requireView(), R.string.share_error, Snackbar.LENGTH_SHORT).show();
+            return;
+        }
         try {
-            String url = "https://www.facebook.com/sharer/sharer.php?u=" + URLEncoder.encode(getShareUrl(), StandardCharsets.UTF_8.toString());
+            String url = "https://www.facebook.com/sharer/sharer.php?u=" + URLEncoder.encode(lastShareUrl, StandardCharsets.UTF_8.toString());
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
             analyticsManager.logShare("facebook");
         } catch (Exception e) {
@@ -400,8 +431,12 @@ public class ScriptEditorFragment extends Fragment {
     }
     
     private void shareToTwitter() {
+        if (lastShareUrl == null || lastShareUrl.isEmpty()) {
+            Snackbar.make(requireView(), R.string.share_error, Snackbar.LENGTH_SHORT).show();
+            return;
+        }
         try {
-            String text = getString(R.string.share_message);
+            String text = getString(R.string.share_message) + "\n" + lastShareUrl;
             String url = "https://twitter.com/intent/tweet?text=" + URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
             analyticsManager.logShare("twitter");
@@ -411,17 +446,25 @@ public class ScriptEditorFragment extends Fragment {
     }
     
     private void shareViaEmail() {
+        if (lastShareUrl == null || lastShareUrl.isEmpty()) {
+            Snackbar.make(requireView(), R.string.share_error, Snackbar.LENGTH_SHORT).show();
+            return;
+        }
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.setType("message/rfc822");
         intent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject));
-        intent.putExtra(Intent.EXTRA_TEXT, getString(R.string.share_message));
+        intent.putExtra(Intent.EXTRA_TEXT, getString(R.string.share_message) + "\n" + lastShareUrl);
         startActivity(Intent.createChooser(intent, getString(R.string.share_via_email)));
         analyticsManager.logShare("email");
     }
     
     private void copyShareLink() {
+        if (lastShareUrl == null || lastShareUrl.isEmpty()) {
+            Snackbar.make(requireView(), R.string.share_error, Snackbar.LENGTH_SHORT).show();
+            return;
+        }
         ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
-        ClipData clip = ClipData.newPlainText("share_link", getShareUrl());
+        ClipData clip = ClipData.newPlainText("share_link", lastShareUrl);
         clipboard.setPrimaryClip(clip);
         Snackbar.make(requireView(), R.string.link_copied, Snackbar.LENGTH_SHORT).show();
         analyticsManager.logShare("copy_link");
@@ -429,5 +472,98 @@ public class ScriptEditorFragment extends Fragment {
     
     private String getShareUrl() {
         return "https://eventwishes.com/share/" + templateId;
+    }
+    
+    private String getWishTitle() {
+        if (getArguments() != null) {
+            return getArguments().getString("title", "Untitled Wish");
+        }
+        return "Untitled Wish";
+    }
+    
+    private String getWishDescription() {
+        if (getArguments() != null) {
+            return getArguments().getString("description", "");
+        }
+        return "";
+    }
+    
+    private void saveToHistory(ShareResponse response) {
+        if (response == null) {
+            Log.e("ScriptEditor", "ShareResponse is null");
+            return;
+        }
+
+        String shortCode = response.getShortUrl();
+        // Extract shortCode from shareUrl if shortUrl is null
+        if (shortCode == null || shortCode.isEmpty()) {
+            String shareUrl = response.getShareUrl();
+            if (shareUrl != null && shareUrl.contains("/wish/")) {
+                shortCode = shareUrl.substring(shareUrl.lastIndexOf("/wish/") + 6);
+            }
+        }
+
+        // Get preview content from response
+        String previewUrl = response.getPreviewContent();
+        Log.d("ScriptEditor", "Raw preview content length: " + (previewUrl != null ? previewUrl.length() : 0));
+        if (previewUrl != null) {
+            Log.d("ScriptEditor", "Preview content starts with: " + 
+                previewUrl.substring(0, Math.min(100, previewUrl.length())));
+        }
+
+        // If it's already a base64 string but missing the data URI prefix
+        if (previewUrl != null && !previewUrl.isEmpty()) {
+            if (!previewUrl.startsWith("data:") && !previewUrl.startsWith("http")) {
+                previewUrl = "data:image/jpeg;base64," + previewUrl;
+                Log.d("ScriptEditor", "Added data URI prefix to preview content");
+            }
+        } else {
+            Log.w("ScriptEditor", "No preview content received from API");
+            // Use default placeholder image
+            previewUrl = "android.resource://" + requireContext().getPackageName() + "/" + R.drawable.placeholder_image;
+            Log.d("ScriptEditor", "Using placeholder image URL: " + previewUrl);
+        }
+
+        WishHistoryItem historyItem = new WishHistoryItem();
+        historyItem.setWishTitle(getWishTitle());
+        historyItem.setDescription(getWishDescription());
+        historyItem.setShortCode(shortCode);
+        historyItem.setShareUrl(response.getShareUrl());
+        historyItem.setRecipientName(recipientInput.getText().toString());
+        historyItem.setSenderName(senderInput.getText().toString());
+        historyItem.setDateShared(new Date());
+        historyItem.setPreviewImageUrl(previewUrl);
+        
+        // Save to database in background thread
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Handler handler = new Handler(Looper.getMainLooper());
+        
+        executor.execute(() -> {
+            try {
+                // Insert in background thread
+                long id = WishDatabase.getInstance(requireContext())
+                    .wishHistoryDao()
+                    .insert(historyItem);
+                Log.d("ScriptEditor", "Successfully saved history item to database with id: " + id);
+                
+                // Verify what was saved
+                executor.execute(() -> {
+                    try {
+                        WishHistoryItem saved = WishDatabase.getInstance(requireContext())
+                            .wishHistoryDao()
+                            .getWishById(id);
+                        if (saved != null) {
+                            Log.d("ScriptEditor", "Verified saved item - Preview URL length: " + 
+                                (saved.getPreviewImageUrl() != null ? saved.getPreviewImageUrl().length() : 0));
+                        }
+                    } catch (Exception e) {
+                        Log.e("ScriptEditor", "Error verifying saved item", e);
+                    }
+                });
+            } catch (Exception e) {
+                Log.e("ScriptEditor", "Error saving history item to database", e);
+            }
+        });
+        executor.shutdown();
     }
 }

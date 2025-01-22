@@ -5,39 +5,35 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 import androidx.room.TypeConverters;
-
-import com.ds.eventwishes.data.local.Converters;
-import com.ds.eventwishes.data.local.dao.SharedWishDao;
-import com.ds.eventwishes.data.local.entity.CachedSharedWish;
+import com.ds.eventwishes.models.WishTemplate;
+import com.ds.eventwishes.models.WishHistoryItem;
+import com.ds.eventwishes.utils.DateConverter;
 
 @Database(
     entities = {
-        CachedTemplate.class,
-        CachedSharedWish.class
+        WishTemplate.class,
+        WishHistoryItem.class
     },
-    version = 1,
+    version = 2,
     exportSchema = false
 )
-@TypeConverters(Converters.class)
+@TypeConverters(DateConverter.class)
 public abstract class WishDatabase extends RoomDatabase {
     private static final String DATABASE_NAME = "wish_database";
     private static volatile WishDatabase instance;
 
-    public abstract TemplateDao templateDao();
-    public abstract SharedWishDao sharedWishDao();
+    public abstract WishTemplateDao wishTemplateDao();
+    public abstract WishHistoryDao wishHistoryDao();
 
-    public static WishDatabase getInstance(Context context) {
+    public static synchronized WishDatabase getInstance(Context context) {
         if (instance == null) {
-            synchronized (WishDatabase.class) {
-                if (instance == null) {
-                    instance = Room.databaseBuilder(
-                            context.getApplicationContext(),
-                            WishDatabase.class,
-                            DATABASE_NAME)
-                            .fallbackToDestructiveMigration()
-                            .build();
-                }
-            }
+            instance = Room.databaseBuilder(
+                context.getApplicationContext(),
+                WishDatabase.class,
+                DATABASE_NAME
+            )
+            .fallbackToDestructiveMigration()
+            .build();
         }
         return instance;
     }

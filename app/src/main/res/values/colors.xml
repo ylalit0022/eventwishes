@@ -8,4 +8,10 @@
     <color name="secondary">#FF03DAC5</color>
     <color name="secondary_dark">#FF018786</color>
     <color name="error_light">#FF000000</color>
+    <color name="background">#FFF5F5F5</color>
+    <color name="text_primary">#DE000000</color>
+    <color name="text_secondary">#99000000</color>
+    <color name="divider">#1F000000</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="error">#FFB00020</color>
 </resources>

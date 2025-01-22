@@ -9,6 +9,10 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Import routes
+const shareRoutes = require('./routes/share');
+const templateRoutes = require('./routes/templates');
+
 // Validate MongoDB URI
 if (!process.env.MONGODB_URI) {
     console.error('ERROR: MONGODB_URI environment variable is not set!');
@@ -96,6 +100,10 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Register routes
+app.use('/api/share', shareRoutes);
+app.use('/api/templates', templateRoutes);
+
 // MongoDB Connection with retry mechanism
 const connectWithRetry = async (retries = 5, delay = 5000) => {
     const uri = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
@@ -135,10 +143,6 @@ const startServer = async () => {
         // Import models after successful connection
         const Template = require('./models/template.js');
         const SharedWish = require('./models/sharedWish.js');
-        const shareRouter = require('./routes/share');
-
-        // Use routes
-        app.use('/api/share', shareRouter);
 
         // Serve wish page and API endpoint
         const serveWish = async (req, res, isApi = false) => {

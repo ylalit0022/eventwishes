@@ -14,6 +14,7 @@ import com.ds.eventwishes.databinding.ActivityMainBinding;
 public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     private NavController navController;
+    private AppBarConfiguration appBarConfiguration;
     private boolean isFirstLaunch = true;
 
     @Override
@@ -33,11 +34,14 @@ public class MainActivity extends AppCompatActivity {
             navController = navHostFragment.getNavController();
             
             // Configure bottom navigation
-            AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
-                    R.id.navigation_home, R.id.navigation_profile)
+            appBarConfiguration = new AppBarConfiguration.Builder(
+                    R.id.navigation_home,
+                    R.id.navigation_my_templates,
+                    R.id.navigation_create,
+                    R.id.navigation_history,
+                    R.id.navigation_more)
                     .build();
                     
-            NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
             NavigationUI.setupWithNavController(binding.navView, navController);
         }
 
@@ -47,42 +51,27 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (navController != null && 
-            navController.getCurrentDestination() != null && 
-            navController.getCurrentDestination().getId() == R.id.navigation_home) {
-            // If we're on the home screen, show exit dialog
-            showExitDialog();
+        if (navController != null && navController.getCurrentDestination() != null) {
+            if (navController.getCurrentDestination().getId() == R.id.navigation_home) {
+                // Show exit confirmation dialog when on home screen
+                new AlertDialog.Builder(this)
+                    .setTitle(R.string.exit_dialog_title)
+                    .setMessage(R.string.exit_dialog_message)
+                    .setPositiveButton(R.string.yes, (dialog, which) -> super.onBackPressed())
+                    .setNegativeButton(R.string.no, null)
+                    .show();
+            } else {
+                super.onBackPressed();
+            }
         } else {
             super.onBackPressed();
         }
     }
 
-    private void showExitDialog() {
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_exit, null);
-        
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setView(dialogView)
-                .create();
-
-        // Set dialog background to be rounded
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawableResource(R.drawable.dialog_rounded_background);
-        }
-
-        // Setup click listeners
-        dialogView.findViewById(R.id.btnNo).setOnClickListener(v -> dialog.dismiss());
-        dialogView.findViewById(R.id.btnYes).setOnClickListener(v -> {
-            dialog.dismiss();
-            finishAffinity();
-        });
-
-        dialog.show();
-    }
-
     @Override
     public boolean onSupportNavigateUp() {
         return navController != null && 
-               NavigationUI.navigateUp(navController, (AppBarConfiguration) null)
+               NavigationUI.navigateUp(navController, appBarConfiguration)
                || super.onSupportNavigateUp();
     }
 }

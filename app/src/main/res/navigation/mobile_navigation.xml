@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/navigation_home">
+
+    <fragment
+        android:id="@+id/navigation_home"
+        android:name="com.ds.eventwishes.ui.home.HomeFragment"
+        android:label="@string/title_home"
+        tools:layout="@layout/fragment_home">
+        <action
+            android:id="@+id/action_home_to_editor"
+            app:destination="@id/navigation_editor" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_my_templates"
+        android:name="com.ds.eventwishes.ui.templates.MyTemplatesFragment"
+        android:label="@string/title_my_templates"
+        tools:layout="@layout/fragment_my_templates" />
+
+    <fragment
+        android:id="@+id/navigation_create"
+        android:name="com.ds.eventwishes.ui.create.CreateFragment"
+        android:label="@string/title_create"
+        tools:layout="@layout/fragment_create" />
+
+    <fragment
+        android:id="@+id/navigation_history"
+        android:name="com.ds.eventwishes.ui.history.HistoryFragment"
+        android:label="@string/title_history"
+        tools:layout="@layout/fragment_history" />
+
+    <fragment
+        android:id="@+id/navigation_reminders"
+        android:name="com.ds.eventwishes.ui.reminders.RemindersFragment"
+        android:label="@string/title_reminders"
+        tools:layout="@layout/fragment_reminders" />
+
+    <fragment
+        android:id="@+id/navigation_profile"
+        android:name="com.ds.eventwishes.ui.profile.ProfileFragment"
+        android:label="@string/title_profile"
+        tools:layout="@layout/fragment_profile" />
+
+    <fragment
+        android:id="@+id/navigation_editor"
+        android:name="com.ds.eventwishes.ui.editor.ScriptEditorFragment"
+        android:label="@string/title_editor"
+        tools:layout="@layout/fragment_script_editor">
+        <argument
+            android:name="templateId"
+            app:argType="string" />
+        <argument
+            android:name="htmlContent"
+            app:argType="string" />
+        <argument
+            android:name="title"
+            app:argType="string" />
+        <argument
+            android:name="description"
+            app:argType="string" />
+    </fragment>
+
+</navigation>

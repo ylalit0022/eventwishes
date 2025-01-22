@@ -57,6 +57,8 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
         Bundle args = new Bundle();
         args.putString("templateId", template.getId());
         args.putString("htmlContent", template.getHtmlContent());
+        args.putString("title", template.getTitle());
+        args.putString("description", template.getCategory());
         Navigation.findNavController(requireView())
                 .navigate(R.id.action_home_to_editor, args);
     }
