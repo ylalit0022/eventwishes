@@ -14,6 +14,8 @@
 
     <!-- Home Fragment -->
     <string name="search_hint">Search templates…</string>
+    <string name="search_wishes">Search wishes…</string>
+    <string name="category_icon">Category icon</string>
     <string name="no_templates">No templates found</string>
     <string name="error_loading_templates">Error loading templates</string>
     <string name="error_loading">Error loading content</string>
