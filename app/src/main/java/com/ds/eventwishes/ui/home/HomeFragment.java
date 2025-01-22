@@ -13,11 +13,14 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.ds.eventwishes.R;
 import com.ds.eventwishes.api.ApiClient;
 import com.ds.eventwishes.api.Template;
 import com.ds.eventwishes.databinding.FragmentHomeBinding;
+import com.ds.eventwishes.databinding.LayoutEmptyStateBinding;
+import com.ds.eventwishes.databinding.LayoutErrorStateBinding;
 import com.ds.eventwishes.model.Category;
 import com.google.android.material.snackbar.Snackbar;
 import java.util.ArrayList;
@@ -28,6 +31,8 @@ import retrofit2.Response;
 
 public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplateClickListener {
     private FragmentHomeBinding binding;
+    private LayoutEmptyStateBinding emptyBinding;
+    private LayoutErrorStateBinding errorBinding;
     private HomeViewModel viewModel;
     private TemplateAdapter templateAdapter;
     private CategoryAdapter categoryAdapter;
@@ -36,6 +41,8 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
+        emptyBinding = LayoutEmptyStateBinding.bind(binding.emptyView.getRoot());
+        errorBinding = LayoutErrorStateBinding.bind(binding.errorView.getRoot());
         return binding.getRoot();
     }
 
@@ -55,7 +62,32 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
         // Setup template adapter
         templateAdapter = new TemplateAdapter(requireContext(), this);
         binding.recyclerView.setAdapter(templateAdapter);
-        binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
+        binding.recyclerView.setLayoutManager(layoutManager);
+
+        // Add scroll listener for pagination
+        binding.recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                
+                // Only load more if scrolling down
+                if (dy <= 0) return;
+
+                int visibleItemCount = layoutManager.getChildCount();
+                int totalItemCount = layoutManager.getItemCount();
+                int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
+
+                // Check if end of list is approaching
+                if (!viewModel.isLoadingMore().getValue() && viewModel.hasMore().getValue()) {
+                    if ((visibleItemCount + firstVisibleItemPosition) >= totalItemCount
+                            && firstVisibleItemPosition >= 0
+                            && totalItemCount >= 20) {
+                        viewModel.loadNextPage();
+                    }
+                }
+            }
+        });
 
         // Setup category adapter
         categoryAdapter = new CategoryAdapter();
@@ -72,62 +104,43 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                viewModel.setSearchQuery(s.toString());
-            }
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
             @Override
-            public void afterTextChanged(Editable s) {}
+            public void afterTextChanged(Editable s) {
+                viewModel.setSearchQuery(s.toString());
+            }
         });
     }
 
     private void setupObservers() {
-        // Observe categories
-        viewModel.getCategories().observe(getViewLifecycleOwner(), categories -> {
-            Log.d("HomeFragment", "Received categories: " + categories.size());
-            categoryAdapter.setCategories(categories);
-            // Don't auto-select any category, let user choose or use "All"
-        });
-
         // Observe templates
         viewModel.getFilteredTemplates().observe(getViewLifecycleOwner(), templates -> {
-            Log.d("HomeFragment", "Received filtered templates: " + 
-                (templates != null ? templates.size() : "null"));
-            
-            binding.progressBar.setVisibility(View.GONE);
-            binding.swipeRefresh.setRefreshing(false);
-
-            if (templates == null || templates.isEmpty()) {
-                binding.emptyView.setVisibility(View.VISIBLE);
-                binding.recyclerView.setVisibility(View.GONE);
-            } else {
-                binding.emptyView.setVisibility(View.GONE);
-                binding.recyclerView.setVisibility(View.VISIBLE);
-                templateAdapter.submitList(templates);
-            }
+            templateAdapter.submitList(templates);
         });
 
         // Observe loading state
         viewModel.isLoading().observe(getViewLifecycleOwner(), isLoading -> {
-            binding.progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
-            if (isLoading) {
-                binding.emptyView.setVisibility(View.GONE);
-                binding.errorView.setVisibility(View.GONE);
-            }
+            binding.swipeRefresh.setRefreshing(isLoading);
+            updateViewVisibility(isLoading, viewModel.getError().getValue(), templateAdapter.getCurrentList().isEmpty());
+        });
+
+        // Observe loading more state
+        viewModel.isLoadingMore().observe(getViewLifecycleOwner(), isLoadingMore -> {
+            binding.loadingMore.setVisibility(isLoadingMore ? View.VISIBLE : View.GONE);
         });
 
         // Observe error state
         viewModel.getError().observe(getViewLifecycleOwner(), error -> {
-            binding.swipeRefresh.setRefreshing(false);
             if (error != null) {
-                Log.e("HomeFragment", "Error: " + error);
-                binding.errorView.setVisibility(View.VISIBLE);
-                binding.errorText.setText(error);
-                binding.recyclerView.setVisibility(View.GONE);
-                binding.emptyView.setVisibility(View.GONE);
-            } else {
-                binding.errorView.setVisibility(View.GONE);
+                errorBinding.errorText.setText(error);
+                updateViewVisibility(false, error, templateAdapter.getCurrentList().isEmpty());
             }
+        });
+
+        // Observe categories
+        viewModel.getCategories().observe(getViewLifecycleOwner(), categories -> {
+            categoryAdapter.submitList(categories);
         });
     }
 
@@ -138,7 +151,33 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
     }
 
     private void setupRetryButton() {
-        binding.retryButton.setOnClickListener(v -> viewModel.refreshData());
+        errorBinding.retryButton.setOnClickListener(v -> {
+            viewModel.refreshData();
+        });
+    }
+
+    private void updateViewVisibility(boolean isLoading, String error, boolean isEmpty) {
+        if (isLoading) {
+            binding.loadingView.setVisibility(View.VISIBLE);
+            binding.recyclerView.setVisibility(View.GONE);
+            binding.emptyView.getRoot().setVisibility(View.GONE);
+            binding.errorView.getRoot().setVisibility(View.GONE);
+        } else if (error != null) {
+            binding.loadingView.setVisibility(View.GONE);
+            binding.recyclerView.setVisibility(View.GONE);
+            binding.emptyView.getRoot().setVisibility(View.GONE);
+            binding.errorView.getRoot().setVisibility(View.VISIBLE);
+        } else if (isEmpty) {
+            binding.loadingView.setVisibility(View.GONE);
+            binding.recyclerView.setVisibility(View.GONE);
+            binding.emptyView.getRoot().setVisibility(View.VISIBLE);
+            binding.errorView.getRoot().setVisibility(View.GONE);
+        } else {
+            binding.loadingView.setVisibility(View.GONE);
+            binding.recyclerView.setVisibility(View.VISIBLE);
+            binding.emptyView.getRoot().setVisibility(View.GONE);
+            binding.errorView.getRoot().setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -156,5 +195,7 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+        emptyBinding = null;
+        errorBinding = null;
     }
 }

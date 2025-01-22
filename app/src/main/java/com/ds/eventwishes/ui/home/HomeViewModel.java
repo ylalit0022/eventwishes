@@ -8,24 +8,30 @@ import android.util.Log;
 import com.ds.eventwishes.R;
 import com.ds.eventwishes.api.ApiClient;
 import com.ds.eventwishes.api.Template;
+import com.ds.eventwishes.api.PaginatedResponse;
 import com.ds.eventwishes.model.Category;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class HomeViewModel extends ViewModel {
+    private static final int PAGE_SIZE = 20;
+    
     private final MutableLiveData<List<Category>> categories = new MutableLiveData<>();
-    private final MutableLiveData<List<Template>> templates = new MutableLiveData<>();
+    private final MutableLiveData<List<Template>> templates = new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<Category> selectedCategory = new MutableLiveData<>();
     private final MutableLiveData<String> searchQuery = new MutableLiveData<>("");
     private final MutableLiveData<Boolean> loading = new MutableLiveData<>(false);
+    private final MutableLiveData<Boolean> loadingMore = new MutableLiveData<>(false);
     private final MutableLiveData<String> error = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> hasMore = new MutableLiveData<>(true);
     
     private final MediatorLiveData<List<Template>> filteredTemplates = new MediatorLiveData<>();
+    private int currentPage = 1;
 
     public HomeViewModel() {
         setupFilteredTemplates();
@@ -64,102 +70,175 @@ public class HomeViewModel extends ViewModel {
         filteredTemplates.setValue(filtered);
     }
 
+    private boolean matchesFilter(Template template, Category selectedCategory, String query) {
+        // If no category is selected or "ALL" is selected, don't filter by category
+        boolean categoryMatches = selectedCategory == null || 
+                                selectedCategory.getId().equals("ALL") ||
+                                (template.getCategory() != null && 
+                                 template.getCategory().equalsIgnoreCase(selectedCategory.getId()));
+
+        // If no query, don't filter by search
+        boolean queryMatches = query == null || 
+                             query.isEmpty() || 
+                             (template.getTitle() != null && 
+                              template.getTitle().toLowerCase().contains(query.toLowerCase()));
+
+        Log.d("HomeViewModel", String.format("Filter check - template: %s, selectedCategory: %s, templateCategory: %s, categoryMatches: %b, queryMatches: %b",
+            template.getTitle(),
+            selectedCategory != null ? selectedCategory.getId() : "null",
+            template.getCategory(),
+            categoryMatches,
+            queryMatches));
+
+        return categoryMatches && queryMatches;
+    }
+
     private void loadCategories(List<Template> templates) {
-        Set<String> uniqueCategories = new HashSet<>();
+        if (templates == null) {
+            Log.d("HomeViewModel", "loadCategories: templates list is null");
+            return;
+        }
+
+        Log.d("HomeViewModel", "Loading categories:");
+        
+        // Count templates per category
+        Map<String, Integer> categoryCounts = new HashMap<>();
+        int totalCount = 0;
+
         for (Template template : templates) {
-            uniqueCategories.add(template.getCategory());
+            String category = template.getCategory();
+            if (category != null) {
+                categoryCounts.put(category, categoryCounts.getOrDefault(category, 0) + 1);
+                totalCount++;
+            }
         }
 
         List<Category> dynamicCategories = new ArrayList<>();
+        
         // Add "All" category first
-        dynamicCategories.add(new Category("ALL", "All", R.drawable.ic_other, templates.size()));
+        Category allCategory = new Category("ALL", "All", R.drawable.ic_other, totalCount);
+        dynamicCategories.add(allCategory);
+        Log.d("HomeViewModel", String.format("Category - id: %s, name: %s, count: %d", 
+            allCategory.getId(), allCategory.getName(), allCategory.getCount()));
 
-        // Map category names to appropriate icons
-        for (String categoryId : uniqueCategories) {
-            int iconResId;
-            switch (categoryId.toUpperCase()) {
-                case "BIRTHDAY":
-                    iconResId = R.drawable.ic_birthday;
-                    break;
-                case "WEDDING":
-                    iconResId = R.drawable.ic_wedding;
-                    break;
-                case "ANNIVERSARY":
-                    iconResId = R.drawable.ic_anniversary;
-                    break;
-                case "GRADUATION":
-                    iconResId = R.drawable.ic_graduation;
-                    break;
-                default:
-                    iconResId = R.drawable.ic_other;
-            }
+        // Add other categories sorted by count (descending)
+        categoryCounts.entrySet().stream()
+            .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+            .forEach(entry -> {
+                String categoryId = entry.getKey();
+                int count = entry.getValue();
+                int iconResId = getCategoryIcon(categoryId);
+                Category category = new Category(categoryId, categoryId, iconResId, count);
+                dynamicCategories.add(category);
+                Log.d("HomeViewModel", String.format("Category - id: %s, name: %s, count: %d", 
+                    category.getId(), category.getName(), category.getCount()));
+            });
 
-            // Count templates in this category
-            int count = 0;
-            for (Template template : templates) {
-                if (template.getCategory().equals(categoryId)) {
-                    count++;
-                }
-            }
-
-            dynamicCategories.add(new Category(categoryId, categoryId, iconResId, count));
-        }
-        
-        Log.d("HomeViewModel", "Loading categories:");
-        for (Category category : dynamicCategories) {
-            Log.d("HomeViewModel", String.format("Category - id: %s, name: %s, count: %d", 
-                category.getId(), category.getName(), category.getWishCount()));
-        }
-        
         categories.setValue(dynamicCategories);
+        
+        // If no category is selected yet, select "All"
+        if (selectedCategory.getValue() == null) {
+            selectedCategory.setValue(allCategory);
+        }
+    }
+
+    private int getCategoryIcon(String category) {
+        if (category == null) return R.drawable.ic_other;
+        
+        switch (category.toUpperCase()) {
+            case "BIRTHDAY":
+                return R.drawable.ic_birthday;
+            case "WEDDING":
+                return R.drawable.ic_wedding;
+            case "ANNIVERSARY":
+                return R.drawable.ic_anniversary;
+            case "GRADUATION":
+                return R.drawable.ic_graduation;
+            case "HOLI":
+                return R.drawable.ic_holi;
+            default:
+                return R.drawable.ic_other;
+        }
     }
 
     public void refreshData() {
+        if (loading.getValue()) return;
+        
         loading.setValue(true);
         error.setValue(null);
-
-        ApiClient.getInstance().getTemplates().enqueue(new Callback<List<Template>>() {
+        currentPage = 1;
+        
+        ApiClient.getInstance().getTemplates(currentPage, PAGE_SIZE).enqueue(new Callback<PaginatedResponse<Template>>() {
             @Override
-            public void onResponse(Call<List<Template>> call, Response<List<Template>> response) {
+            public void onResponse(Call<PaginatedResponse<Template>> call, Response<PaginatedResponse<Template>> response) {
                 loading.setValue(false);
+                
                 if (response.isSuccessful() && response.body() != null) {
-                    List<Template> receivedTemplates = response.body();
-                    Log.d("HomeViewModel", "Received templates: " + receivedTemplates.size());
-                    templates.setValue(receivedTemplates);
-                    loadCategories(receivedTemplates);
+                    PaginatedResponse<Template> paginatedResponse = response.body();
+                    templates.setValue(new ArrayList<>(paginatedResponse.getData()));
+                    hasMore.setValue(paginatedResponse.getCurrentPage() < paginatedResponse.getTotalPages());
+                    loadCategories(paginatedResponse.getData());
                 } else {
-                    String errorMsg = "Failed to load templates: " + response.code();
-                    Log.e("HomeViewModel", errorMsg);
+                    String errorMsg = "Failed to load templates. Please try again.";
+                    try {
+                        if (response.errorBody() != null) {
+                            errorMsg = response.errorBody().string();
+                        }
+                    } catch (Exception e) {
+                        Log.e("HomeViewModel", "Error reading error body", e);
+                    }
                     error.setValue(errorMsg);
                 }
             }
 
             @Override
-            public void onFailure(Call<List<Template>> call, Throwable t) {
-                String errorMsg = "Network error: " + t.getMessage();
-                Log.e("HomeViewModel", errorMsg, t);
+            public void onFailure(Call<PaginatedResponse<Template>> call, Throwable t) {
                 loading.setValue(false);
-                error.setValue(errorMsg);
+                error.setValue("Network error: " + t.getMessage() + "\nPlease check your connection and try again.");
+                Log.e("HomeViewModel", "API call failed", t);
             }
         });
     }
 
-    private boolean matchesFilter(Template template, Category category, String query) {
-        // If category is null or "ALL", show all templates
-        boolean matchesCategory = category == null || 
-                                category.getId().equals("ALL") ||
-                                template.getCategory().equals(category.getId());
-                                
-        boolean matchesSearch = query == null || query.isEmpty() ||
-                              template.getTitle().toLowerCase().contains(query.toLowerCase());
-                              
-        Log.d("HomeViewModel", String.format("Filter check - template: %s, category: %s, templateCategory: %s, matches: %b", 
-            template.getTitle(),
-            category != null ? category.getId() : "null",
-            template.getCategory(),
-            matchesCategory && matchesSearch));
-            
-        return matchesCategory && matchesSearch;
+    public void loadNextPage() {
+        if (loadingMore.getValue() || !hasMore.getValue()) return;
+        
+        loadingMore.setValue(true);
+        currentPage++;
+        
+        ApiClient.getInstance().getTemplates(currentPage, PAGE_SIZE).enqueue(new Callback<PaginatedResponse<Template>>() {
+            @Override
+            public void onResponse(Call<PaginatedResponse<Template>> call, Response<PaginatedResponse<Template>> response) {
+                loadingMore.setValue(false);
+                
+                if (response.isSuccessful() && response.body() != null) {
+                    PaginatedResponse<Template> paginatedResponse = response.body();
+                    List<Template> currentTemplates = new ArrayList<>(templates.getValue());
+                    currentTemplates.addAll(paginatedResponse.getData());
+                    templates.setValue(currentTemplates);
+                    hasMore.setValue(paginatedResponse.getCurrentPage() < paginatedResponse.getTotalPages());
+                } else {
+                    currentPage--; // Revert page increment on error
+                    String errorMsg = "Failed to load more templates";
+                    try {
+                        if (response.errorBody() != null) {
+                            errorMsg = response.errorBody().string();
+                        }
+                    } catch (Exception e) {
+                        Log.e("HomeViewModel", "Error reading error body", e);
+                    }
+                    error.setValue(errorMsg);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PaginatedResponse<Template>> call, Throwable t) {
+                loadingMore.setValue(false);
+                currentPage--; // Revert page increment on error
+                error.setValue("Network error while loading more templates: " + t.getMessage());
+                Log.e("HomeViewModel", "API call failed", t);
+            }
+        });
     }
 
     public LiveData<List<Category>> getCategories() {
@@ -174,8 +253,16 @@ public class HomeViewModel extends ViewModel {
         return loading;
     }
 
+    public LiveData<Boolean> isLoadingMore() {
+        return loadingMore;
+    }
+
     public LiveData<String> getError() {
         return error;
+    }
+
+    public LiveData<Boolean> hasMore() {
+        return hasMore;
     }
 
     public void setSelectedCategory(Category category) {

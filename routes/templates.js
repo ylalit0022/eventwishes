@@ -39,26 +39,46 @@ router.get('/debug/status', async (req, res) => {
     }
 });
 
-// Get all templates
+// Get all templates with pagination
 router.get('/', async (req, res) => {
     try {
-        // Find all templates with debug logging
-        console.log('Fetching all templates...');
-        const templates = await Template.find({});
-        console.log(`Found ${templates ? templates.length : 0} templates`);
-        
-        if (!templates || templates.length === 0) {
-            return res.status(404).json({ error: 'No templates found' });
-        }
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
 
-        // Return all templates
-        res.json({
-            templates: templates,
-            count: templates.length
+        console.log(`Fetching templates with pagination: page=${page}, limit=${limit}, skip=${skip}`);
+
+        // Get total count for pagination
+        const totalItems = await Template.countDocuments();
+        const totalPages = Math.ceil(totalItems / limit);
+
+        // Find templates with pagination
+        const templates = await Template.find({})
+            .sort({ createdAt: -1 }) // Sort by newest first
+            .skip(skip)
+            .limit(limit)
+            .lean(); // Convert to plain JavaScript objects
+
+        console.log(`Found ${templates ? templates.length : 0} templates for page ${page}`);
+        
+        // Always return a paginated response object
+        return res.json({
+            data: templates || [],
+            page: page,
+            totalPages: totalPages,
+            totalItems: totalItems,
+            hasMore: page < totalPages
         });
     } catch (error) {
         console.error('Error getting templates:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({
+            data: [],
+            page: 1,
+            totalPages: 0,
+            totalItems: 0,
+            hasMore: false,
+            error: 'Internal server error'
+        });
     }
 });
 

@@ -45,19 +45,23 @@ const validateRequest = (req, res, next) => {
     next();
 };
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(validateRequest);
-
-// Serve static files from the public directory
-app.use(express.static(path.join(__dirname, 'public')));
-
 // Debug logging middleware
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
     next();
 });
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(validateRequest);
+
+// Mount routes BEFORE static files
+app.use('/api/templates', templateRoutes);
+app.use('/api/share', shareRoutes);
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Asset links data
 const assetLinksData = [{
@@ -100,45 +104,34 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Register routes
-app.use('/api/share', shareRoutes);
-app.use('/api/templates', templateRoutes);
-
 // MongoDB Connection with retry mechanism
-const connectWithRetry = async (retries = 5, delay = 5000) => {
-    const uri = process.env.MONGODB_URI || 'mongodb+srv://ylalit0022:jBRgqv6BBfj2lYaG@cluster0.3d1qt.mongodb.net/eventwishes?retryWrites=true&w=majority';
-    
+async function connectWithRetry(retries = 5, delay = 5000) {
     for (let i = 0; i < retries; i++) {
         try {
-            console.log(`Attempting to connect to MongoDB (attempt ${i + 1}/${retries})...`);
-            await mongoose.connect(uri, {
-                serverSelectionTimeoutMS: 5000,
-                heartbeatFrequencyMS: 2000,
-                maxPoolSize: 10,
-                minPoolSize: 1,
-                maxIdleTimeMS: 30000
+            console.log(`MongoDB connection attempt ${i + 1} of ${retries}...`);
+            await mongoose.connect(process.env.MONGODB_URI, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true
             });
-            console.log('Successfully connected to MongoDB Atlas!');
-            return true;
+            console.log('MongoDB connected successfully');
+            return;
         } catch (err) {
-            console.error(`MongoDB connection attempt ${i + 1} failed:`, err.message);
+            console.error(`Connection attempt ${i + 1} failed:`, err.message);
             if (i < retries - 1) {
-                console.log(`Retrying in ${delay/1000} seconds...`);
+                console.log(`Retrying in ${delay / 1000} seconds...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
     }
-    return false;
-};
+    console.error('Failed to connect to MongoDB after multiple attempts');
+    process.exit(1);
+}
 
 // Start server and MongoDB connection
-const startServer = async () => {
+async function startServer() {
     try {
-        const connected = await connectWithRetry();
-        if (!connected) {
-            console.error('Failed to connect to MongoDB after multiple retries. Exiting...');
-            process.exit(1);
-        }
+        // Connect to MongoDB first
+        await connectWithRetry();
 
         // Import models after successful connection
         const Template = require('./models/template.js');
@@ -363,13 +356,13 @@ const startServer = async () => {
         console.error('Error starting server:', err);
         process.exit(1);
     }
-};
-
-// Start the application
-startServer();
+}
 
 // Add error handler middleware last
 app.use(errorHandler);
+
+// Start the application
+startServer();
 
 // HTML template for wish page
 const getWishPageHtml = (wish, previewImage) => {

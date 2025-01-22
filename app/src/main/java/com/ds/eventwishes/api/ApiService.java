@@ -6,7 +6,10 @@ import retrofit2.http.*;
 
 public interface ApiService {
     @GET("api/templates")
-    Call<List<Template>> getTemplates();
+    Call<PaginatedResponse<Template>> getTemplates(
+        @Query("page") int page,
+        @Query("limit") int limit
+    );
 
     @GET("api/templates/{id}")
     Call<Template> getTemplate(@Path("id") String id);
