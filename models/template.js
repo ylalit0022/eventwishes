@@ -43,6 +43,14 @@ const templateSchema = new mongoose.Schema({
     updatedAt: {
         type: Date,
         default: Date.now
+    },
+    likes: {
+        type: Number,
+        default: 0
+    },
+    shares: {
+        type: Number,
+        default: 0
     }
 });
 
@@ -52,4 +60,6 @@ templateSchema.pre('save', function(next) {
     next();
 });
 
-module.exports = mongoose.model('Template', templateSchema);
+const Template = mongoose.model('Template', templateSchema);
+
+module.exports = Template;
