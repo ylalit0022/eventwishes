@@ -94,13 +94,7 @@ router.get('/', async (req, res) => {
                 $group: {
                     _id: "$category",  // Keep original case
                     count: { $sum: 1 },
-<<<<<<< HEAD
-                    // Get the most common icon URL for this category
-                    iconUrl: { $first: "$categoryIconUrl" }
-=======
-                    // Get the most common icon for this category
-                    icon: { $first: "$categoryIcon" }
->>>>>>> 648f55770077b367d35daf298b8abdf93e970cca
+                    iconUrl: { $first: "$categoryIconUrl" }  // Get the most common icon URL for this category
                 }
             },
             {
@@ -132,11 +126,7 @@ router.get('/', async (req, res) => {
             if (cat._id && cat._id.trim()) {
                 categories[cat._id.trim()] = {
                     count: cat.count,
-<<<<<<< HEAD
                     icon: cat.iconUrl || 'https://raw.githubusercontent.com/ylalit0022/eventwishes/main/assets/icons/ic_other.png'  // Use default if no icon
-=======
-                    icon: cat.icon || 'ic_other'  // Use default if no icon
->>>>>>> 648f55770077b367d35daf298b8abdf93e970cca
                 };
             }
         });
