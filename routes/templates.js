@@ -45,16 +45,24 @@ router.get('/', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
+        const category = req.query.category ? req.query.category.toLowerCase().trim() : null;
 
-        console.log(`Fetching templates with pagination: page=${page}, limit=${limit}, skip=${skip}`);
+        console.log(`Fetching templates with pagination: page=${page}, limit=${limit}, skip=${skip}, category=${category}`);
+
+        // Build query
+        const query = {};
+        if (category && category !== 'all') {
+            query.category = { $regex: new RegExp(`^${category}$`, 'i') };
+        }
 
         // Get total count and category counts
         const [totalItems, categoryCounts] = await Promise.all([
-            Template.countDocuments(),
+            Template.countDocuments(query),
             Template.aggregate([
+                { $match: query },
                 {
                     $group: {
-                        _id: "$category",
+                        _id: { $toLower: "$category" },
                         count: { $sum: 1 }
                     }
                 },
@@ -69,7 +77,7 @@ router.get('/', async (req, res) => {
         const totalPages = Math.ceil(totalItems / limit);
 
         // Find templates with pagination
-        const templates = await Template.find({})
+        const templates = await Template.find(query)
             .sort({ createdAt: -1 }) // Sort by newest first
             .skip(skip)
             .limit(limit)
