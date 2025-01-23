@@ -1,8 +1,6 @@
 package com.ds.eventwishes.ui.home;
 
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,20 +14,17 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.ds.eventwishes.R;
-import com.ds.eventwishes.api.ApiClient;
-import com.ds.eventwishes.api.Template;
 import com.ds.eventwishes.databinding.FragmentHomeBinding;
 import com.ds.eventwishes.databinding.LayoutEmptyStateBinding;
 import com.ds.eventwishes.databinding.LayoutErrorStateBinding;
 import com.ds.eventwishes.model.Category;
+import com.ds.eventwishes.model.Template;
 import com.google.android.material.snackbar.Snackbar;
 import java.util.ArrayList;
 import java.util.List;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
-public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplateClickListener {
+public class HomeFragment extends Fragment {
+    private static final String TAG = "HomeFragment";
     private FragmentHomeBinding binding;
     private LayoutEmptyStateBinding emptyBinding;
     private LayoutErrorStateBinding errorBinding;
@@ -52,10 +47,12 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
         viewModel = new ViewModelProvider(this).get(HomeViewModel.class);
 
         setupAdapters();
-        setupSearch();
         setupObservers();
         setupSwipeRefresh();
         setupRetryButton();
+
+        // Initial load
+        viewModel.loadTemplates(true);
     }
 
     @Override
@@ -68,7 +65,18 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
 
     private void setupAdapters() {
         // Setup template adapter
-        templateAdapter = new TemplateAdapter(requireContext(), this);
+        templateAdapter = new TemplateAdapter();
+        templateAdapter.setOnTemplateClickListener(template -> {
+            if (template != null) {
+                Bundle args = new Bundle();
+                args.putString("templateId", template.getId());
+                args.putString("title", template.getTitle());
+                args.putString("category", template.getCategory());
+                Navigation.findNavController(requireView())
+                    .navigate(R.id.action_home_to_detail, args);
+            }
+        });
+        
         binding.recyclerView.setAdapter(templateAdapter);
         LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
         binding.recyclerView.setLayoutManager(layoutManager);
@@ -87,11 +95,11 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
                 int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
 
                 // Check if end of list is approaching
-                if (!viewModel.isLoadingMore().getValue() && viewModel.hasMore().getValue()) {
+                if (!viewModel.getIsLoading().getValue() && viewModel.hasMore().getValue()) {
                     if ((visibleItemCount + firstVisibleItemPosition) >= totalItemCount
                             && firstVisibleItemPosition >= 0
                             && totalItemCount >= 20) {
-                        viewModel.loadNextPage();
+                        viewModel.loadMore();
                     }
                 }
             }
@@ -99,131 +107,72 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
 
         // Setup category adapter
         categoryAdapter = new CategoryAdapter();
-        LinearLayoutManager categoriesLayoutManager = new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false);
-        binding.categoriesRecyclerView.setLayoutManager(categoriesLayoutManager);
+        categoryAdapter.setOnCategorySelectedListener(category -> {
+            viewModel.selectCategory(category);
+        });
         binding.categoriesRecyclerView.setAdapter(categoryAdapter);
-        categoryAdapter.setOnCategoryClickListener((category, position) -> {
-            categoryAdapter.setSelectedPosition(position);
-            viewModel.setSelectedCategory(category);
-        });
-    }
-
-    private void setupSearch() {
-        binding.searchInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {}
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                viewModel.setSearchQuery(s.toString());
-            }
-        });
+        binding.categoriesRecyclerView.setLayoutManager(
+            new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
     }
 
     private void setupObservers() {
-        // Observe filtered templates
-        viewModel.getFilteredTemplates().observe(getViewLifecycleOwner(), templates -> {
-            if (binding == null) return;
-            
-            templateAdapter.submitList(templates);
-            
-            // Update visibility of views based on data state
-            boolean hasData = templates != null && !templates.isEmpty();
-            updateViewVisibility(false, null, !hasData);
+        // Observe templates
+        viewModel.getTemplates().observe(getViewLifecycleOwner(), templates -> {
+            templateAdapter.submitList(new ArrayList<>(templates));
+            updateVisibility();
         });
 
         // Observe categories
         viewModel.getCategories().observe(getViewLifecycleOwner(), categories -> {
-            if (binding == null) return;
-            categoryAdapter.submitList(categories);
+            categoryAdapter.setCategories(categories);
         });
 
-        // Observe loading state for pagination
-        viewModel.isLoadingMore().observe(getViewLifecycleOwner(), isLoading -> {
-            if (binding == null) return;
-            binding.loadingMore.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        // Observe selected category
+        viewModel.getSelectedCategory().observe(getViewLifecycleOwner(), category -> {
+            categoryAdapter.setSelectedCategory(category);
         });
 
         // Observe loading state
-        viewModel.isLoading().observe(getViewLifecycleOwner(), isLoading -> {
-            if (binding == null) return;
-            
-            // Update SwipeRefreshLayout
+        viewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
+            binding.progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
             binding.swipeRefresh.setRefreshing(isLoading);
-            
-            // Only show loading view on initial load
-            if (isLoading && (templateAdapter.getItemCount() == 0)) {
-                updateViewVisibility(true, null, false);
-            }
         });
 
         // Observe errors
         viewModel.getError().observe(getViewLifecycleOwner(), error -> {
-            if (binding == null) return;
-            
-            boolean hasError = error != null && !error.isEmpty();
-            updateViewVisibility(false, hasError ? error : null, templateAdapter.getItemCount() == 0);
-            
-            if (hasError) {
-                errorBinding.errorText.setText(error);
-                Snackbar.make(binding.getRoot(), error, Snackbar.LENGTH_LONG).show();
+            if (error != null && !error.isEmpty()) {
+                showError(error);
             }
+            updateVisibility();
         });
     }
 
     private void setupSwipeRefresh() {
-        if (binding != null && binding.swipeRefresh != null) {
-            binding.swipeRefresh.setOnRefreshListener(() -> {
-                viewModel.refreshData();
-            });
-        }
+        binding.swipeRefresh.setOnRefreshListener(() -> {
+            viewModel.refresh();
+        });
     }
 
     private void setupRetryButton() {
         errorBinding.retryButton.setOnClickListener(v -> {
-            viewModel.refreshData();
+            viewModel.refresh();
         });
     }
 
-    private void updateViewVisibility(boolean isLoading, String error, boolean isEmpty) {
-        if (binding == null) return;
+    private void updateVisibility() {
+        List<Template> templates = viewModel.getTemplates().getValue();
+        boolean hasTemplates = templates != null && !templates.isEmpty();
+        boolean hasError = viewModel.getError().getValue() != null;
+        boolean isLoading = viewModel.getIsLoading().getValue() == Boolean.TRUE;
 
-        // Hide all views first
-        binding.loadingView.setVisibility(View.GONE);
-        binding.recyclerView.setVisibility(View.GONE);
-        binding.emptyView.getRoot().setVisibility(View.GONE);
-        binding.errorView.getRoot().setVisibility(View.GONE);
-
-        // Show appropriate view based on state
-        if (isLoading) {
-            binding.loadingView.setVisibility(View.VISIBLE);
-        } else if (error != null && !error.isEmpty()) {
-            binding.errorView.getRoot().setVisibility(View.VISIBLE);
-            errorBinding.errorText.setText(error);
-        } else if (isEmpty) {
-            binding.emptyView.getRoot().setVisibility(View.VISIBLE);
-        } else {
-            binding.recyclerView.setVisibility(View.VISIBLE);
-        }
-
-        // Categories should always be visible unless there's an error
-        binding.categoriesRecyclerView.setVisibility(error != null ? View.GONE : View.VISIBLE);
-        
-        // Search should always be visible unless there's an error
-        binding.searchLayout.setVisibility(error != null ? View.GONE : View.VISIBLE);
+        binding.recyclerView.setVisibility(hasTemplates ? View.VISIBLE : View.GONE);
+        binding.emptyView.getRoot().setVisibility(!hasTemplates && !hasError && !isLoading ? View.VISIBLE : View.GONE);
+        binding.errorView.getRoot().setVisibility(hasError && !isLoading ? View.VISIBLE : View.GONE);
     }
 
-    @Override
-    public void onTemplateClick(Template template) {
-        Bundle args = new Bundle();
-        args.putString("templateId", template.getId());
-        args.putString("htmlContent", template.getHtmlContent());
-        args.putString("title", template.getTitle());
-        args.putString("description", template.getCategory());
-        Navigation.findNavController(requireView())
-                .navigate(R.id.action_home_to_editor, args);
+    private void showError(String message) {
+        if (getView() != null) {
+            Snackbar.make(getView(), message, Snackbar.LENGTH_LONG).show();
+        }
     }
 }

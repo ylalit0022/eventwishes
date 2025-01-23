@@ -1,19 +1,17 @@
 package com.ds.eventwishes.model;
 
-import androidx.annotation.DrawableRes;
 import java.util.Objects;
 
 public class Category {
     private String id;
     private String name;
-    @DrawableRes
-    private int iconResId;
+    private String iconUrl;
     private int count;
 
-    public Category(String id, String name, @DrawableRes int iconResId, int count) {
+    public Category(String id, String name, String iconUrl, int count) {
         this.id = id;
         this.name = name;
-        this.iconResId = iconResId;
+        this.iconUrl = iconUrl;
         this.count = count;
     }
 
@@ -21,12 +19,24 @@ public class Category {
         return id;
     }
 
+    public void setId(String id) {
+        this.id = id;
+    }
+
     public String getName() {
         return name;
     }
 
-    public @DrawableRes int getIconResId() {
-        return iconResId;
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getIconUrl() {
+        return iconUrl;
+    }
+
+    public void setIconUrl(String iconUrl) {
+        this.iconUrl = iconUrl;
     }
 
     public int getCount() {
@@ -42,14 +52,11 @@ public class Category {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Category category = (Category) o;
-        return iconResId == category.iconResId &&
-               count == category.count &&
-               Objects.equals(id, category.id) &&
-               Objects.equals(name, category.name);
+        return id.equals(category.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, iconResId, count);
+        return id.hashCode();
     }
 }

@@ -39,39 +39,73 @@ router.get('/debug/status', async (req, res) => {
     }
 });
 
+// Helper function to get icon for category
+function getCategoryIcon(category) {
+    // Convert to lowercase for case-insensitive matching
+    const lowerCategory = category.toLowerCase();
+    
+    // Map of category keywords to icons
+    const iconMap = {
+        'birthday': 'ic_birthday',
+        'anniversary': 'ic_anniversary',
+        'wedding': 'ic_wedding',
+        'graduation': 'ic_graduation',
+        'holi': 'ic_holi',
+        'all': 'ic_all'
+    };
+
+    // Check if category contains any of the keywords
+    for (const [keyword, icon] of Object.entries(iconMap)) {
+        if (lowerCategory.includes(keyword)) {
+            return icon;
+        }
+    }
+
+    // Default icon
+    return 'ic_other';
+}
+
 // Get all templates with pagination
 router.get('/', async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
-        const category = req.query.category ? req.query.category.toLowerCase().trim() : null;
+        const category = req.query.category ? req.query.category.trim() : null;
 
         console.log(`Fetching templates with pagination: page=${page}, limit=${limit}, skip=${skip}, category=${category}`);
 
         // Build query
         const query = {};
-        if (category && category !== 'all') {
+        if (category && category.toLowerCase() !== 'all') {
+            // Case-insensitive exact match for category
             query.category = { $regex: new RegExp(`^${category}$`, 'i') };
         }
 
-        // Get total count and category counts
-        const [totalItems, categoryCounts] = await Promise.all([
-            Template.countDocuments(query),
-            Template.aggregate([
-                { $match: query },
-                {
-                    $group: {
-                        _id: { $toLower: "$category" },
-                        count: { $sum: 1 }
-                    }
-                },
-                {
-                    $match: {
-                        _id: { $ne: null }
-                    }
+        // Get total count for the current query
+        const totalItems = await Template.countDocuments(query);
+        
+        // Get total count across all categories
+        const totalTemplates = await Template.countDocuments({});
+
+        // Get all unique categories and their counts with icons
+        const categoryCounts = await Template.aggregate([
+            {
+                $group: {
+                    _id: "$category",  // Keep original case
+                    count: { $sum: 1 },
+                    // Get the most common icon URL for this category
+                    iconUrl: { $first: "$categoryIconUrl" }
                 }
-            ])
+            },
+            {
+                $match: {
+                    _id: { $nin: [null, ""] }  // Exclude null and empty categories
+                }
+            },
+            {
+                $sort: { _id: 1 }
+            }
         ]);
 
         const totalPages = Math.ceil(totalItems / limit);
@@ -83,24 +117,30 @@ router.get('/', async (req, res) => {
             .limit(limit)
             .lean(); // Convert to plain JavaScript objects
 
-        console.log(`Found ${templates ? templates.length : 0} templates for page ${page}`);
+        console.log(`Found ${templates ? templates.length : 0} templates for category: ${category}`);
+        console.log('Category counts:', categoryCounts);
+        console.log(`Total templates across all categories: ${totalTemplates}`);
         
-        // Format category counts
-        const categories = categoryCounts.reduce((acc, curr) => {
-            if (curr._id && curr._id.trim()) {
-                acc[curr._id.trim()] = curr.count;
+        // Format category counts and icons
+        const categories = {};
+        categoryCounts.forEach(cat => {
+            if (cat._id && cat._id.trim()) {
+                categories[cat._id.trim()] = {
+                    count: cat.count,
+                    icon: cat.iconUrl || 'https://raw.githubusercontent.com/ylalit0022/eventwishes/main/assets/icons/ic_other.png'  // Use default if no icon
+                };
             }
-            return acc;
-        }, {});
-        
+        });
+
         // Always return a paginated response object
         return res.json({
             data: templates || [],
             page: page,
             totalPages: totalPages,
-            totalItems: totalItems,
+            totalItems: category && category.toLowerCase() !== 'all' ? totalItems : totalTemplates,
             hasMore: page < totalPages,
-            categories: categories
+            categories: categories,
+            totalTemplates: totalTemplates
         });
     } catch (error) {
         console.error('Error getting templates:', error);
@@ -111,6 +151,7 @@ router.get('/', async (req, res) => {
             totalItems: 0,
             hasMore: false,
             categories: {},
+            totalTemplates: 0,
             error: 'Internal server error'
         });
     }

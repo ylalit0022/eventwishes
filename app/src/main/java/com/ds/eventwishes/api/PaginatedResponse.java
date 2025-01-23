@@ -1,5 +1,6 @@
 package com.ds.eventwishes.api;
 
+import com.ds.eventwishes.model.CategoryInfo;
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
 import java.util.Map;
@@ -9,7 +10,7 @@ public class PaginatedResponse<T> {
     private List<T> data;
 
     @SerializedName("page")
-    private int currentPage;
+    private int page;
 
     @SerializedName("totalPages")
     private int totalPages;
@@ -21,7 +22,10 @@ public class PaginatedResponse<T> {
     private boolean hasMore;
 
     @SerializedName("categories")
-    private Map<String, Integer> categories;
+    private Map<String, CategoryInfo> categories;
+
+    @SerializedName("totalTemplates")
+    private int totalTemplates;
 
     public List<T> getData() {
         return data;
@@ -31,12 +35,12 @@ public class PaginatedResponse<T> {
         this.data = data;
     }
 
-    public int getCurrentPage() {
-        return currentPage;
+    public int getPage() {
+        return page;
     }
 
-    public void setCurrentPage(int currentPage) {
-        this.currentPage = currentPage;
+    public void setPage(int page) {
+        this.page = page;
     }
 
     public int getTotalPages() {
@@ -55,7 +59,7 @@ public class PaginatedResponse<T> {
         this.totalItems = totalItems;
     }
 
-    public boolean hasMore() {
+    public boolean isHasMore() {
         return hasMore;
     }
 
@@ -63,11 +67,19 @@ public class PaginatedResponse<T> {
         this.hasMore = hasMore;
     }
 
-    public Map<String, Integer> getCategories() {
+    public Map<String, CategoryInfo> getCategories() {
         return categories;
     }
 
-    public void setCategories(Map<String, Integer> categories) {
+    public void setCategories(Map<String, CategoryInfo> categories) {
         this.categories = categories;
+    }
+
+    public int getTotalTemplates() {
+        return totalTemplates;
+    }
+
+    public void setTotalTemplates(int totalTemplates) {
+        this.totalTemplates = totalTemplates;
     }
 }

@@ -17,6 +17,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.ds.eventwishes.R;
 import com.ds.eventwishes.api.ApiClient;
+import com.ds.eventwishes.api.ApiResponse;
 import com.ds.eventwishes.api.ApiService;
 import com.ds.eventwishes.api.SharedWish;
 import com.ds.eventwishes.databinding.ActivityResourceBinding;
@@ -29,7 +30,7 @@ public class ResourceActivity extends AppCompatActivity {
     private ActivityResourceBinding binding;
     private ApiService apiService;
     private String currentShortCode;
-    private Call<SharedWish> currentCall;
+    private Call<ApiResponse<SharedWish>> currentCall;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -187,24 +188,30 @@ public class ResourceActivity extends AppCompatActivity {
         }
 
         currentCall = apiService.getSharedWish(shortCode);
-        currentCall.enqueue(new Callback<SharedWish>() {
+        currentCall.enqueue(new Callback<ApiResponse<SharedWish>>() {
             @Override
-            public void onResponse(Call<SharedWish> call, Response<SharedWish> response) {
+            public void onResponse(Call<ApiResponse<SharedWish>> call, Response<ApiResponse<SharedWish>> response) {
                 if (isFinishing()) return;
 
                 binding.progressBar.setVisibility(View.GONE);
-                if (response.isSuccessful() && response.body() != null) {
-                    displayWish(response.body());
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    SharedWish sharedWish = response.body().getData();
+                    if (sharedWish != null) {
+                        displayWish(sharedWish);
+                    } else {
+                        showError("Invalid shared wish data");
+                    }
                 } else {
-                    showError(getString(R.string.error_loading));
+                    String errorMessage = response.body() != null ? response.body().getMessage() : "Failed to load shared wish";
+                    showError(errorMessage);
                 }
             }
 
             @Override
-            public void onFailure(Call<SharedWish> call, Throwable t) {
+            public void onFailure(Call<ApiResponse<SharedWish>> call, Throwable t) {
                 if (isFinishing() || call.isCanceled()) return;
                 binding.progressBar.setVisibility(View.GONE);
-                showError(getString(R.string.error_network));
+                showError("Network error: " + t.getMessage());
             }
         });
     }

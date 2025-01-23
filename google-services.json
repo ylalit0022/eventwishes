@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "514967198227",
+    "project_id": "event-wishesh",
+    "storage_bucket": "event-wishesh.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:514967198227:android:a02a7d6a6f43f09985bde6",
+        "android_client_info": {
+          "package_name": "com.ds.eventwishes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCZZ4ot_oJWTza-Zy-y9u2ygXxQ1YlC5UU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

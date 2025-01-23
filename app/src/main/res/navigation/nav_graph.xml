@@ -11,8 +11,24 @@
         android:label="@string/title_home"
         tools:layout="@layout/fragment_home">
         <action
-            android:id="@+id/action_home_to_editor"
-            app:destination="@id/navigation_editor" />
+            android:id="@+id/action_home_to_detail"
+            app:destination="@id/navigation_detail" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_detail"
+        android:name="com.ds.eventwishes.ui.detail.TemplateDetailFragment"
+        android:label="Template Details"
+        tools:layout="@layout/fragment_template_detail">
+        <argument
+            android:name="templateId"
+            app:argType="string" />
+        <argument
+            android:name="title"
+            app:argType="string" />
+        <argument
+            android:name="category"
+            app:argType="string" />
     </fragment>
 
     <fragment
