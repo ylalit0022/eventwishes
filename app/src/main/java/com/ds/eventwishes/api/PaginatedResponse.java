@@ -2,6 +2,7 @@ package com.ds.eventwishes.api;
 
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
+import java.util.Map;
 
 public class PaginatedResponse<T> {
     @SerializedName("data")
@@ -18,6 +19,9 @@ public class PaginatedResponse<T> {
 
     @SerializedName("hasMore")
     private boolean hasMore;
+
+    @SerializedName("categories")
+    private Map<String, Integer> categories;
 
     public List<T> getData() {
         return data;
@@ -57,5 +61,13 @@ public class PaginatedResponse<T> {
 
     public void setHasMore(boolean hasMore) {
         this.hasMore = hasMore;
+    }
+
+    public Map<String, Integer> getCategories() {
+        return categories;
+    }
+
+    public void setCategories(Map<String, Integer> categories) {
+        this.categories = categories;
     }
 }

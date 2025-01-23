@@ -45,15 +45,39 @@ router.get('/', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
+        const category = req.query.category ? req.query.category.toLowerCase().trim() : null;
 
-        console.log(`Fetching templates with pagination: page=${page}, limit=${limit}, skip=${skip}`);
+        console.log(`Fetching templates with pagination: page=${page}, limit=${limit}, skip=${skip}, category=${category}`);
 
-        // Get total count for pagination
-        const totalItems = await Template.countDocuments();
+        // Build query
+        const query = {};
+        if (category && category !== 'all') {
+            query.category = { $regex: new RegExp(`^${category}$`, 'i') };
+        }
+
+        // Get total count and category counts
+        const [totalItems, categoryCounts] = await Promise.all([
+            Template.countDocuments(query),
+            Template.aggregate([
+                { $match: query },
+                {
+                    $group: {
+                        _id: { $toLower: "$category" },
+                        count: { $sum: 1 }
+                    }
+                },
+                {
+                    $match: {
+                        _id: { $ne: null }
+                    }
+                }
+            ])
+        ]);
+
         const totalPages = Math.ceil(totalItems / limit);
 
         // Find templates with pagination
-        const templates = await Template.find({})
+        const templates = await Template.find(query)
             .sort({ createdAt: -1 }) // Sort by newest first
             .skip(skip)
             .limit(limit)
@@ -61,13 +85,22 @@ router.get('/', async (req, res) => {
 
         console.log(`Found ${templates ? templates.length : 0} templates for page ${page}`);
         
+        // Format category counts
+        const categories = categoryCounts.reduce((acc, curr) => {
+            if (curr._id && curr._id.trim()) {
+                acc[curr._id.trim()] = curr.count;
+            }
+            return acc;
+        }, {});
+        
         // Always return a paginated response object
         return res.json({
             data: templates || [],
             page: page,
             totalPages: totalPages,
             totalItems: totalItems,
-            hasMore: page < totalPages
+            hasMore: page < totalPages,
+            categories: categories
         });
     } catch (error) {
         console.error('Error getting templates:', error);
@@ -77,6 +110,7 @@ router.get('/', async (req, res) => {
             totalPages: 0,
             totalItems: 0,
             hasMore: false,
+            categories: {},
             error: 'Internal server error'
         });
     }

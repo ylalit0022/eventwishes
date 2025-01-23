@@ -8,7 +8,8 @@ public interface ApiService {
     @GET("api/templates")
     Call<PaginatedResponse<Template>> getTemplates(
         @Query("page") int page,
-        @Query("limit") int limit
+        @Query("limit") int limit,
+        @Query("category") String category
     );
 
     @GET("api/templates/{id}")

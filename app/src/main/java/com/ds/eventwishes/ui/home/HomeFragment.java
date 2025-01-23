@@ -58,6 +58,14 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
         setupRetryButton();
     }
 
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        binding = null;
+        emptyBinding = null;
+        errorBinding = null;
+    }
+
     private void setupAdapters() {
         // Setup template adapter
         templateAdapter = new TemplateAdapter(requireContext(), this);
@@ -91,6 +99,8 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
 
         // Setup category adapter
         categoryAdapter = new CategoryAdapter();
+        LinearLayoutManager categoriesLayoutManager = new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false);
+        binding.categoriesRecyclerView.setLayoutManager(categoriesLayoutManager);
         binding.categoriesRecyclerView.setAdapter(categoryAdapter);
         categoryAdapter.setOnCategoryClickListener((category, position) -> {
             categoryAdapter.setSelectedPosition(position);
@@ -114,40 +124,62 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
     }
 
     private void setupObservers() {
-        // Observe templates
+        // Observe filtered templates
         viewModel.getFilteredTemplates().observe(getViewLifecycleOwner(), templates -> {
+            if (binding == null) return;
+            
             templateAdapter.submitList(templates);
-        });
-
-        // Observe loading state
-        viewModel.isLoading().observe(getViewLifecycleOwner(), isLoading -> {
-            binding.swipeRefresh.setRefreshing(isLoading);
-            updateViewVisibility(isLoading, viewModel.getError().getValue(), templateAdapter.getCurrentList().isEmpty());
-        });
-
-        // Observe loading more state
-        viewModel.isLoadingMore().observe(getViewLifecycleOwner(), isLoadingMore -> {
-            binding.loadingMore.setVisibility(isLoadingMore ? View.VISIBLE : View.GONE);
-        });
-
-        // Observe error state
-        viewModel.getError().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) {
-                errorBinding.errorText.setText(error);
-                updateViewVisibility(false, error, templateAdapter.getCurrentList().isEmpty());
-            }
+            
+            // Update visibility of views based on data state
+            boolean hasData = templates != null && !templates.isEmpty();
+            updateViewVisibility(false, null, !hasData);
         });
 
         // Observe categories
         viewModel.getCategories().observe(getViewLifecycleOwner(), categories -> {
+            if (binding == null) return;
             categoryAdapter.submitList(categories);
+        });
+
+        // Observe loading state for pagination
+        viewModel.isLoadingMore().observe(getViewLifecycleOwner(), isLoading -> {
+            if (binding == null) return;
+            binding.loadingMore.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        });
+
+        // Observe loading state
+        viewModel.isLoading().observe(getViewLifecycleOwner(), isLoading -> {
+            if (binding == null) return;
+            
+            // Update SwipeRefreshLayout
+            binding.swipeRefresh.setRefreshing(isLoading);
+            
+            // Only show loading view on initial load
+            if (isLoading && (templateAdapter.getItemCount() == 0)) {
+                updateViewVisibility(true, null, false);
+            }
+        });
+
+        // Observe errors
+        viewModel.getError().observe(getViewLifecycleOwner(), error -> {
+            if (binding == null) return;
+            
+            boolean hasError = error != null && !error.isEmpty();
+            updateViewVisibility(false, hasError ? error : null, templateAdapter.getItemCount() == 0);
+            
+            if (hasError) {
+                errorBinding.errorText.setText(error);
+                Snackbar.make(binding.getRoot(), error, Snackbar.LENGTH_LONG).show();
+            }
         });
     }
 
     private void setupSwipeRefresh() {
-        binding.swipeRefresh.setOnRefreshListener(() -> {
-            viewModel.refreshData();
-        });
+        if (binding != null && binding.swipeRefresh != null) {
+            binding.swipeRefresh.setOnRefreshListener(() -> {
+                viewModel.refreshData();
+            });
+        }
     }
 
     private void setupRetryButton() {
@@ -157,27 +189,31 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
     }
 
     private void updateViewVisibility(boolean isLoading, String error, boolean isEmpty) {
+        if (binding == null) return;
+
+        // Hide all views first
+        binding.loadingView.setVisibility(View.GONE);
+        binding.recyclerView.setVisibility(View.GONE);
+        binding.emptyView.getRoot().setVisibility(View.GONE);
+        binding.errorView.getRoot().setVisibility(View.GONE);
+
+        // Show appropriate view based on state
         if (isLoading) {
             binding.loadingView.setVisibility(View.VISIBLE);
-            binding.recyclerView.setVisibility(View.GONE);
-            binding.emptyView.getRoot().setVisibility(View.GONE);
-            binding.errorView.getRoot().setVisibility(View.GONE);
-        } else if (error != null) {
-            binding.loadingView.setVisibility(View.GONE);
-            binding.recyclerView.setVisibility(View.GONE);
-            binding.emptyView.getRoot().setVisibility(View.GONE);
+        } else if (error != null && !error.isEmpty()) {
             binding.errorView.getRoot().setVisibility(View.VISIBLE);
+            errorBinding.errorText.setText(error);
         } else if (isEmpty) {
-            binding.loadingView.setVisibility(View.GONE);
-            binding.recyclerView.setVisibility(View.GONE);
             binding.emptyView.getRoot().setVisibility(View.VISIBLE);
-            binding.errorView.getRoot().setVisibility(View.GONE);
         } else {
-            binding.loadingView.setVisibility(View.GONE);
             binding.recyclerView.setVisibility(View.VISIBLE);
-            binding.emptyView.getRoot().setVisibility(View.GONE);
-            binding.errorView.getRoot().setVisibility(View.GONE);
         }
+
+        // Categories should always be visible unless there's an error
+        binding.categoriesRecyclerView.setVisibility(error != null ? View.GONE : View.VISIBLE);
+        
+        // Search should always be visible unless there's an error
+        binding.searchLayout.setVisibility(error != null ? View.GONE : View.VISIBLE);
     }
 
     @Override
@@ -189,13 +225,5 @@ public class HomeFragment extends Fragment implements TemplateAdapter.OnTemplate
         args.putString("description", template.getCategory());
         Navigation.findNavController(requireView())
                 .navigate(R.id.action_home_to_editor, args);
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        binding = null;
-        emptyBinding = null;
-        errorBinding = null;
     }
 }
