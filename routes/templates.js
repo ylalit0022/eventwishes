@@ -52,26 +52,29 @@ router.get('/', async (req, res) => {
         // Build query
         const query = {};
         if (category && category !== 'all') {
-            query.category = { $regex: new RegExp(`^${category}$`, 'i') };
+            // Handle category filtering case-insensitively
+            query.category = { $regex: new RegExp(category, 'i') };
         }
 
-        // Get total count and category counts
-        const [totalItems, categoryCounts] = await Promise.all([
-            Template.countDocuments(query),
-            Template.aggregate([
-                { $match: query },
-                {
-                    $group: {
-                        _id: { $toLower: "$category" },
-                        count: { $sum: 1 }
-                    }
-                },
-                {
-                    $match: {
-                        _id: { $ne: null }
-                    }
+        // Get total count for the current query
+        const totalItems = await Template.countDocuments(query);
+
+        // Get all unique categories and their counts
+        const categoryCounts = await Template.aggregate([
+            {
+                $group: {
+                    _id: { $toLower: "$category" },
+                    count: { $sum: 1 }
                 }
-            ])
+            },
+            {
+                $match: {
+                    _id: { $ne: null, $ne: "" }
+                }
+            },
+            {
+                $sort: { _id: 1 }
+            }
         ]);
 
         const totalPages = Math.ceil(totalItems / limit);
@@ -83,7 +86,8 @@ router.get('/', async (req, res) => {
             .limit(limit)
             .lean(); // Convert to plain JavaScript objects
 
-        console.log(`Found ${templates ? templates.length : 0} templates for page ${page}`);
+        console.log(`Found ${templates ? templates.length : 0} templates for category: ${category}`);
+        console.log('Category counts:', categoryCounts);
         
         // Format category counts
         const categories = categoryCounts.reduce((acc, curr) => {
@@ -92,7 +96,7 @@ router.get('/', async (req, res) => {
             }
             return acc;
         }, {});
-        
+
         // Always return a paginated response object
         return res.json({
             data: templates || [],
