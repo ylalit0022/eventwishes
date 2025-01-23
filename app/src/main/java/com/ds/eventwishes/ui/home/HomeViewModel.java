@@ -88,7 +88,7 @@ public class HomeViewModel extends ViewModel {
         boolean categoryMatches = selectedCategory == null || 
                                 selectedCategory.getId().equalsIgnoreCase("all") ||
                                 (template.getCategory() != null && 
-                                 normalizeCategory(template.getCategory()).equals(selectedCategory.getId()));
+                                 template.getCategory().equals(selectedCategory.getId()));
 
         // Search filter
         boolean queryMatches = query == null || 
@@ -96,19 +96,14 @@ public class HomeViewModel extends ViewModel {
                              (template.getTitle() != null && 
                               template.getTitle().toLowerCase().contains(query.toLowerCase()));
 
-        Log.d("HomeViewModel", String.format("Filter check - template: %s, category: %s, templateCategory: %s, normalizedCategory: %s, categoryMatches: %b, queryMatches: %b",
+        Log.d("HomeViewModel", String.format("Filter check - template: %s, category: %s, templateCategory: %s, categoryMatches: %b, queryMatches: %b",
             template.getTitle(),
             selectedCategory != null ? selectedCategory.getId() : "null",
             template.getCategory(),
-            template.getCategory() != null ? normalizeCategory(template.getCategory()) : "null",
             categoryMatches,
             queryMatches));
 
         return categoryMatches && queryMatches;
-    }
-
-    private String normalizeCategory(String category) {
-        return category.toLowerCase().trim().replaceAll("\\s+", "_");
     }
 
     public LiveData<List<Category>> getCategories() {
@@ -218,7 +213,7 @@ public class HomeViewModel extends ViewModel {
         // Update counts for existing categories and add new ones
         Map<String, Category> existingCategoryMap = new HashMap<>();
         for (Category existingCategory : currentCategories) {
-            existingCategoryMap.put(existingCategory.getId().toLowerCase(), existingCategory);
+            existingCategoryMap.put(existingCategory.getId(), existingCategory);
         }
 
         List<Category> updatedCategories = new ArrayList<>();
@@ -226,8 +221,12 @@ public class HomeViewModel extends ViewModel {
         // Add "All" category first
         Category allCategory = existingCategoryMap.get("all");
         if (allCategory == null) {
-            allCategory = new Category("all", "All", response.getTotalTemplates(), 
-                "https://raw.githubusercontent.com/ylalit0022/eventwishes/main/assets/icons/ic_all.png");
+            allCategory = new Category(
+                "all", 
+                "All", 
+                "https://raw.githubusercontent.com/ylalit0022/eventwishes/main/assets/icons/ic_all.png",
+                response.getTotalTemplates()
+            );
         } else {
             allCategory.setCount(response.getTotalTemplates());
         }
@@ -235,7 +234,7 @@ public class HomeViewModel extends ViewModel {
 
         // Process other categories
         for (Map.Entry<String, CategoryInfo> entry : categoryMap.entrySet()) {
-            String categoryId = normalizeCategory(entry.getKey());
+            String categoryId = entry.getKey();
             CategoryInfo info = entry.getValue();
             
             if (categoryId == null || categoryId.isEmpty()) continue;
@@ -245,7 +244,7 @@ public class HomeViewModel extends ViewModel {
             
             // Use default icon if none provided
             if (iconUrl == null || iconUrl.isEmpty()) {
-                iconUrl = getDefaultIconUrl(categoryId);
+                iconUrl = "https://raw.githubusercontent.com/ylalit0022/eventwishes/main/assets/icons/ic_other.png";
             }
 
             if (existingCategory != null) {
@@ -255,9 +254,9 @@ public class HomeViewModel extends ViewModel {
             } else {
                 Category newCategory = new Category(
                     categoryId,
-                    formatCategoryName(entry.getKey()),
-                    info.getCount(),
-                    iconUrl
+                    categoryId, // Use the original category name
+                    iconUrl,
+                    info.getCount()
                 );
                 updatedCategories.add(newCategory);
             }
@@ -268,67 +267,6 @@ public class HomeViewModel extends ViewModel {
             (c1, c2) -> c1.getName().compareTo(c2.getName()));
 
         categories.setValue(updatedCategories);
-    }
-
-    private String normalizeCategory(String category) {
-        if (category == null) return null;
-        
-        // Convert to lowercase and trim
-        String normalized = category.toLowerCase().trim();
-        
-        // Map special cases
-        switch (normalized) {
-            case "happy diwali":
-                return "diwali";
-            case "graduation":
-                return "graduation";
-            case "holi":
-                return "holi";
-            default:
-                return normalized;
-        }
-    }
-
-    private String formatCategoryName(String category) {
-        if (category == null) return "";
-        
-        // Split by spaces and capitalize each word
-        String[] words = category.toLowerCase().split("\\s+");
-        StringBuilder formatted = new StringBuilder();
-        
-        for (String word : words) {
-            if (word.length() > 0) {
-                formatted.append(Character.toUpperCase(word.charAt(0)))
-                        .append(word.substring(1))
-                        .append(" ");
-            }
-        }
-        
-        return formatted.toString().trim();
-    }
-
-    private String getDefaultIconUrl(String categoryId) {
-        String baseUrl = "https://raw.githubusercontent.com/ylalit0022/eventwishes/main/assets/icons/";
-        switch (categoryId) {
-            case "birthday":
-                return baseUrl + "ic_birthday.png";
-            case "wedding":
-                return baseUrl + "ic_wedding.png";
-            case "graduation":
-                return baseUrl + "ic_graduation.png";
-            case "diwali":
-                return baseUrl + "ic_diwali.png";
-            case "holi":
-                return baseUrl + "ic_holi.png";
-            case "professional":
-                return baseUrl + "ic_professional.png";
-            case "holiday":
-                return baseUrl + "ic_holiday.png";
-            case "congratulation":
-                return baseUrl + "ic_congratulation.png";
-            default:
-                return baseUrl + "ic_other.png";
-        }
     }
 
     public void selectCategory(Category category) {
