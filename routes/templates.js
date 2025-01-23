@@ -45,15 +45,15 @@ router.get('/', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
-        const category = req.query.category ? req.query.category.toLowerCase().trim() : null;
+        const category = req.query.category ? req.query.category.trim() : null;
 
         console.log(`Fetching templates with pagination: page=${page}, limit=${limit}, skip=${skip}, category=${category}`);
 
         // Build query
         const query = {};
-        if (category && category !== 'all') {
-            // Handle category filtering case-insensitively
-            query.category = { $regex: new RegExp(category, 'i') };
+        if (category && category.toLowerCase() !== 'all') {
+            // Case-insensitive exact match for category
+            query.category = { $regex: new RegExp(`^${category}$`, 'i') };
         }
 
         // Get total count for the current query
@@ -63,7 +63,7 @@ router.get('/', async (req, res) => {
         const categoryCounts = await Template.aggregate([
             {
                 $group: {
-                    _id: { $toLower: "$category" },
+                    _id: "$category",  // Keep original case
                     count: { $sum: 1 }
                 }
             },
@@ -89,7 +89,7 @@ router.get('/', async (req, res) => {
         console.log(`Found ${templates ? templates.length : 0} templates for category: ${category}`);
         console.log('Category counts:', categoryCounts);
         
-        // Format category counts
+        // Format category counts - keep original case
         const categories = categoryCounts.reduce((acc, curr) => {
             if (curr._id && curr._id.trim()) {
                 acc[curr._id.trim()] = curr.count;
