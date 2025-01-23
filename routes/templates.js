@@ -101,18 +101,15 @@ router.get('/', async (req, res) => {
             return acc;
         }, {});
 
-        // Add total count to response
-        categories['All'] = totalTemplates;
-
         // Always return a paginated response object
         return res.json({
             data: templates || [],
             page: page,
             totalPages: totalPages,
-            totalItems: totalItems,
+            totalItems: category && category.toLowerCase() !== 'all' ? totalItems : totalTemplates,
             hasMore: page < totalPages,
             categories: categories,
-            totalTemplates: totalTemplates  // Add total templates count
+            totalTemplates: totalTemplates  // Total count across all categories
         });
     } catch (error) {
         console.error('Error getting templates:', error);
