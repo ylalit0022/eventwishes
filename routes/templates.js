@@ -58,6 +58,9 @@ router.get('/', async (req, res) => {
 
         // Get total count for the current query
         const totalItems = await Template.countDocuments(query);
+        
+        // Get total count across all categories
+        const totalTemplates = await Template.countDocuments({});
 
         // Get all unique categories and their counts
         const categoryCounts = await Template.aggregate([
@@ -69,7 +72,7 @@ router.get('/', async (req, res) => {
             },
             {
                 $match: {
-                    _id: { $ne: null, $ne: "" }
+                    _id: { $nin: [null, ""] }  // Exclude null and empty categories
                 }
             },
             {
@@ -88,6 +91,7 @@ router.get('/', async (req, res) => {
 
         console.log(`Found ${templates ? templates.length : 0} templates for category: ${category}`);
         console.log('Category counts:', categoryCounts);
+        console.log(`Total templates across all categories: ${totalTemplates}`);
         
         // Format category counts - keep original case
         const categories = categoryCounts.reduce((acc, curr) => {
@@ -97,6 +101,9 @@ router.get('/', async (req, res) => {
             return acc;
         }, {});
 
+        // Add total count to response
+        categories['All'] = totalTemplates;
+
         // Always return a paginated response object
         return res.json({
             data: templates || [],
@@ -104,7 +111,8 @@ router.get('/', async (req, res) => {
             totalPages: totalPages,
             totalItems: totalItems,
             hasMore: page < totalPages,
-            categories: categories
+            categories: categories,
+            totalTemplates: totalTemplates  // Add total templates count
         });
     } catch (error) {
         console.error('Error getting templates:', error);
@@ -115,6 +123,7 @@ router.get('/', async (req, res) => {
             totalItems: 0,
             hasMore: false,
             categories: {},
+            totalTemplates: 0,
             error: 'Internal server error'
         });
     }
