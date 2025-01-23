@@ -14,7 +14,7 @@ const templateSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        enum: ['birthday', 'wedding', 'professional', 'general', 'holiday', 'congratulation']
+        enum: ['birthday', 'wedding', 'professional', 'general', 'holiday', 'congratulation', 'graduation', 'diwali', 'holi']
     },
     categoryIconUrl: {
         type: String,

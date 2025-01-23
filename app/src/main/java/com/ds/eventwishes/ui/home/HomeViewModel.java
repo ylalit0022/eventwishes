@@ -218,76 +218,116 @@ public class HomeViewModel extends ViewModel {
         // Update counts for existing categories and add new ones
         Map<String, Category> existingCategoryMap = new HashMap<>();
         for (Category existingCategory : currentCategories) {
-            existingCategoryMap.put(existingCategory.getId(), existingCategory);
+            existingCategoryMap.put(existingCategory.getId().toLowerCase(), existingCategory);
         }
 
-        List<Category> categoryList = new ArrayList<>();
-        for (Map.Entry<String, CategoryInfo> entry : categoryMap.entrySet()) {
-            String categoryName = entry.getKey();
-            CategoryInfo info = entry.getValue();
-            
-            if (categoryName != null && !categoryName.trim().isEmpty()) {
-                // Use the original category name for display
-                String displayName = Arrays.stream(categoryName.split("\\s+"))
-                    .map(word -> word.substring(0, 1).toUpperCase() + word.substring(1).toLowerCase())
-                    .collect(Collectors.joining(" "));
-                
-                // Normalize category ID (lowercase with underscores)
-                String normalizedId = normalizeCategory(categoryName);
-                
-                // Check if we already have this category
-                Category existingCategory = existingCategoryMap.get(normalizedId);
-                if (existingCategory != null) {
-                    // Update count and icon URL but keep other properties
-                    existingCategory.setCount(info.getCount());
-                    existingCategory.setIconUrl(info.getIconUrl());
-                    categoryList.add(existingCategory);
-                } else {
-                    // Create new category with icon URL from server
-                    Category category = new Category(
-                        normalizedId,      // id (normalized)
-                        displayName,       // name (properly capitalized)
-                        info.getIconUrl(), // icon URL from server
-                        info.getCount()    // count
-                    );
-                    categoryList.add(category);
-                }
-                
-                Log.d(TAG, String.format("Category: id=%s, name=%s, count=%d, iconUrl=%s", 
-                    normalizedId, displayName, info.getCount(), info.getIconUrl()));
-            }
-        }
-
-        // Sort categories by count (descending) and then by name
-        Collections.sort(categoryList, (a, b) -> {
-            int countCompare = Integer.compare(b.getCount(), a.getCount());
-            return countCompare != 0 ? countCompare : a.getName().compareTo(b.getName());
-        });
-
-        // Add "All" category at the beginning with total count
+        List<Category> updatedCategories = new ArrayList<>();
+        
+        // Add "All" category first
         Category allCategory = existingCategoryMap.get("all");
         if (allCategory == null) {
-            allCategory = new Category(
-                "all", 
-                "All", 
-                "https://raw.githubusercontent.com/ylalit0022/eventwishes/main/assets/icons/ic_all.png",
-                response.getTotalTemplates()
-            );
+            allCategory = new Category("all", "All", response.getTotalTemplates(), 
+                "https://raw.githubusercontent.com/ylalit0022/eventwishes/main/assets/icons/ic_all.png");
         } else {
             allCategory.setCount(response.getTotalTemplates());
         }
-        
-        // Always add "All" category at the beginning
-        categoryList.add(0, allCategory);
-        Log.d(TAG, String.format("Added ALL category with total count: %d", allCategory.getCount()));
+        updatedCategories.add(allCategory);
 
-        // Only update categories if we have data
-        categories.setValue(categoryList);
+        // Process other categories
+        for (Map.Entry<String, CategoryInfo> entry : categoryMap.entrySet()) {
+            String categoryId = normalizeCategory(entry.getKey());
+            CategoryInfo info = entry.getValue();
+            
+            if (categoryId == null || categoryId.isEmpty()) continue;
+
+            Category existingCategory = existingCategoryMap.get(categoryId);
+            String iconUrl = info.getIconUrl();
+            
+            // Use default icon if none provided
+            if (iconUrl == null || iconUrl.isEmpty()) {
+                iconUrl = getDefaultIconUrl(categoryId);
+            }
+
+            if (existingCategory != null) {
+                existingCategory.setCount(info.getCount());
+                existingCategory.setIconUrl(iconUrl);
+                updatedCategories.add(existingCategory);
+            } else {
+                Category newCategory = new Category(
+                    categoryId,
+                    formatCategoryName(entry.getKey()),
+                    info.getCount(),
+                    iconUrl
+                );
+                updatedCategories.add(newCategory);
+            }
+        }
+
+        // Sort categories (keeping "All" at the top)
+        Collections.sort(updatedCategories.subList(1, updatedCategories.size()), 
+            (c1, c2) -> c1.getName().compareTo(c2.getName()));
+
+        categories.setValue(updatedCategories);
+    }
+
+    private String normalizeCategory(String category) {
+        if (category == null) return null;
         
-        // If no category is selected yet, select "All"
-        if (selectedCategory.getValue() == null) {
-            Log.d(TAG, "No category selected, selecting ALL");
-            selectedCategory.setValue(allCategory);
+        // Convert to lowercase and trim
+        String normalized = category.toLowerCase().trim();
+        
+        // Map special cases
+        switch (normalized) {
+            case "happy diwali":
+                return "diwali";
+            case "graduation":
+                return "graduation";
+            case "holi":
+                return "holi";
+            default:
+                return normalized;
+        }
+    }
+
+    private String formatCategoryName(String category) {
+        if (category == null) return "";
+        
+        // Split by spaces and capitalize each word
+        String[] words = category.toLowerCase().split("\\s+");
+        StringBuilder formatted = new StringBuilder();
+        
+        for (String word : words) {
+            if (word.length() > 0) {
+                formatted.append(Character.toUpperCase(word.charAt(0)))
+                        .append(word.substring(1))
+                        .append(" ");
+            }
+        }
+        
+        return formatted.toString().trim();
+    }
+
+    private String getDefaultIconUrl(String categoryId) {
+        String baseUrl = "https://raw.githubusercontent.com/ylalit0022/eventwishes/main/assets/icons/";
+        switch (categoryId) {
+            case "birthday":
+                return baseUrl + "ic_birthday.png";
+            case "wedding":
+                return baseUrl + "ic_wedding.png";
+            case "graduation":
+                return baseUrl + "ic_graduation.png";
+            case "diwali":
+                return baseUrl + "ic_diwali.png";
+            case "holi":
+                return baseUrl + "ic_holi.png";
+            case "professional":
+                return baseUrl + "ic_professional.png";
+            case "holiday":
+                return baseUrl + "ic_holiday.png";
+            case "congratulation":
+                return baseUrl + "ic_congratulation.png";
+            default:
+                return baseUrl + "ic_other.png";
         }
     }
 
