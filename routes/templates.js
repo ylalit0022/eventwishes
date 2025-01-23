@@ -39,6 +39,32 @@ router.get('/debug/status', async (req, res) => {
     }
 });
 
+// Helper function to get icon for category
+function getCategoryIcon(category) {
+    // Convert to lowercase for case-insensitive matching
+    const lowerCategory = category.toLowerCase();
+    
+    // Map of category keywords to icons
+    const iconMap = {
+        'birthday': 'ic_birthday',
+        'anniversary': 'ic_anniversary',
+        'wedding': 'ic_wedding',
+        'graduation': 'ic_graduation',
+        'holi': 'ic_holi',
+        'all': 'ic_all'
+    };
+
+    // Check if category contains any of the keywords
+    for (const [keyword, icon] of Object.entries(iconMap)) {
+        if (lowerCategory.includes(keyword)) {
+            return icon;
+        }
+    }
+
+    // Default icon
+    return 'ic_other';
+}
+
 // Get all templates with pagination
 router.get('/', async (req, res) => {
     try {
@@ -62,12 +88,14 @@ router.get('/', async (req, res) => {
         // Get total count across all categories
         const totalTemplates = await Template.countDocuments({});
 
-        // Get all unique categories and their counts
+        // Get all unique categories and their counts with icons
         const categoryCounts = await Template.aggregate([
             {
                 $group: {
                     _id: "$category",  // Keep original case
-                    count: { $sum: 1 }
+                    count: { $sum: 1 },
+                    // Get the most common icon for this category
+                    icon: { $first: "$categoryIcon" }
                 }
             },
             {
@@ -93,13 +121,16 @@ router.get('/', async (req, res) => {
         console.log('Category counts:', categoryCounts);
         console.log(`Total templates across all categories: ${totalTemplates}`);
         
-        // Format category counts - keep original case
-        const categories = categoryCounts.reduce((acc, curr) => {
-            if (curr._id && curr._id.trim()) {
-                acc[curr._id.trim()] = curr.count;
+        // Format category counts and icons
+        const categories = {};
+        categoryCounts.forEach(cat => {
+            if (cat._id && cat._id.trim()) {
+                categories[cat._id.trim()] = {
+                    count: cat.count,
+                    icon: cat.icon || 'ic_other'  // Use default if no icon
+                };
             }
-            return acc;
-        }, {});
+        });
 
         // Always return a paginated response object
         return res.json({
@@ -109,7 +140,7 @@ router.get('/', async (req, res) => {
             totalItems: category && category.toLowerCase() !== 'all' ? totalItems : totalTemplates,
             hasMore: page < totalPages,
             categories: categories,
-            totalTemplates: totalTemplates  // Total count across all categories
+            totalTemplates: totalTemplates
         });
     } catch (error) {
         console.error('Error getting templates:', error);
