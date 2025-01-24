@@ -7,25 +7,42 @@ const shortid = require('shortid');
 // Create share link
 router.post('/', async (req, res) => {
     try {
-        const { templateId, recipientName, senderName } = req.body;
+        console.log('[DEBUG] Share request body:', JSON.stringify(req.body, null, 2));
+        
+        const { templateId, recipientName, senderName, customizedHtml } = req.body;
+        
+        console.log('[DEBUG] Extracted fields:', {
+            templateId: templateId || 'missing',
+            recipientName: recipientName || 'missing',
+            senderName: senderName || 'missing',
+            customizedHtml: customizedHtml ? 'present' : 'missing',
+            customizedHtmlLength: customizedHtml ? customizedHtml.length : 0
+        });
 
         // Validate required fields
-        if (!templateId || !recipientName || !senderName) {
+        if (!templateId || !recipientName || !senderName || !customizedHtml) {
+            const missingFields = {
+                templateId: !templateId ? 'Missing templateId' : undefined,
+                recipientName: !recipientName ? 'Missing recipientName' : undefined,
+                senderName: !senderName ? 'Missing senderName' : undefined,
+                customizedHtml: !customizedHtml ? 'Missing customizedHtml' : undefined
+            };
+            
+            console.log('[DEBUG] Validation failed - missing fields:', missingFields);
+            
             return res.status(400).json({ 
                 error: 'Missing required fields',
-                details: {
-                    templateId: !templateId ? 'Missing templateId' : undefined,
-                    recipientName: !recipientName ? 'Missing recipientName' : undefined,
-                    senderName: !senderName ? 'Missing senderName' : undefined
-                }
+                details: missingFields
             });
         }
 
         // Get template
         const template = await Template.findById(templateId);
         if (!template) {
+            console.log('[DEBUG] Template not found:', templateId);
             return res.status(404).json({ error: 'Template not found' });
         }
+        console.log('[DEBUG] Found template:', template._id);
 
         // Check if a wish with same template and names already exists
         const existingWish = await SharedWish.findOne({
@@ -38,15 +55,17 @@ router.post('/', async (req, res) => {
         let sharedWish;
 
         if (existingWish) {
-            // Use existing wish
+            console.log('[DEBUG] Updating existing wish:', existingWish._id);
+            // Use existing wish but update customizedHtml
             shortCode = existingWish.shortCode;
             sharedWish = existingWish;
             
-            // Update timestamp to show it was shared again
+            // Update customizedHtml and timestamp
+            existingWish.customizedHtml = customizedHtml;
             existingWish.lastSharedAt = new Date();
             await existingWish.save();
             
-            console.log('Using existing wish:', shortCode);
+            console.log('[DEBUG] Updated existing wish:', shortCode);
         } else {
             // Generate unique short code
             shortCode = shortid.generate();
@@ -56,23 +75,26 @@ router.post('/', async (req, res) => {
                 shortCode = shortid.generate();
             }
 
+            console.log('[DEBUG] Creating new wish with shortCode:', shortCode);
+            
             // Create new shared wish
             sharedWish = new SharedWish({
                 shortCode,
                 templateId,
                 recipientName: recipientName.trim(),
                 senderName: senderName.trim(),
-                customizedHtml: template.htmlContent,
+                customizedHtml,
                 createdAt: new Date(),
                 lastSharedAt: new Date()
             });
 
             await sharedWish.save();
-            console.log('Created new wish:', shortCode);
+            console.log('[DEBUG] Created new wish:', sharedWish._id);
         }
 
         // Generate share URL
         const shareUrl = `${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/wish/${shortCode}`;
+        console.log('[DEBUG] Generated share URL:', shareUrl);
 
         res.json({
             shareUrl,
@@ -81,16 +103,21 @@ router.post('/', async (req, res) => {
             isExisting: !!existingWish
         });
     } catch (error) {
-        console.error('Share error:', error);
+        console.error('[ERROR] Share error:', error);
+        console.error('[ERROR] Stack trace:', error.stack);
         
         // Better error handling
         if (error.name === 'ValidationError') {
+            const details = Object.keys(error.errors).reduce((acc, key) => {
+                acc[key] = error.errors[key].message;
+                return acc;
+            }, {});
+            
+            console.log('[DEBUG] Validation error details:', details);
+            
             return res.status(400).json({
                 error: 'Validation Error',
-                details: Object.keys(error.errors).reduce((acc, key) => {
-                    acc[key] = error.errors[key].message;
-                    return acc;
-                }, {})
+                details
             });
         }
         
@@ -105,12 +132,16 @@ router.post('/', async (req, res) => {
 router.get('/:shortCode', async (req, res) => {
     try {
         const shortCode = req.params.shortCode;
+        console.log('[DEBUG] Fetching wish with shortCode:', shortCode);
         
         // Find the shared wish
         const wish = await SharedWish.findOne({ shortCode });
         if (!wish) {
+            console.log('[DEBUG] Wish not found:', shortCode);
             return res.status(404).json({ error: 'Wish not found' });
         }
+
+        console.log('[DEBUG] Found wish:', wish._id);
 
         // Update view count and last viewed time
         wish.views = (wish.views || 0) + 1;
@@ -130,7 +161,8 @@ router.get('/:shortCode', async (req, res) => {
             lastViewedAt: wish.lastViewedAt
         });
     } catch (error) {
-        console.error('Error fetching shared wish:', error);
+        console.error('[ERROR] Error fetching shared wish:', error);
+        console.error('[ERROR] Stack trace:', error.stack);
         res.status(500).json({ error: 'Failed to fetch shared wish' });
     }
 });
