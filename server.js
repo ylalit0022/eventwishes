@@ -58,7 +58,7 @@ app.use(validateRequest);
 
 // Mount routes BEFORE static files
 app.use('/api/templates', templateRoutes);
-app.use('/api/share', shareRoutes);
+app.use('/share', shareRoutes);
 
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'public')));
