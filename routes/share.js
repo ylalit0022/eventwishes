@@ -9,23 +9,23 @@ router.post('/', async (req, res) => {
     try {
         console.log('[DEBUG] Share request body:', JSON.stringify(req.body, null, 2));
         
-        const { templateId, recipientName, senderName, customizedHtml } = req.body;
+        const { _id, recipientName, senderName, htmlContent } = req.body;
         
         console.log('[DEBUG] Extracted fields:', {
-            templateId: templateId || 'missing',
+            _id: _id || 'missing',
             recipientName: recipientName || 'missing',
             senderName: senderName || 'missing',
-            customizedHtml: customizedHtml ? 'present' : 'missing',
-            customizedHtmlLength: customizedHtml ? customizedHtml.length : 0
+            htmlContent: htmlContent ? 'present' : 'missing',
+            htmlContentLength: htmlContent ? htmlContent.length : 0
         });
 
         // Validate required fields
-        if (!templateId || !recipientName || !senderName || !customizedHtml) {
+        if (!_id || !recipientName || !senderName || !htmlContent) {
             const missingFields = {
-                templateId: !templateId ? 'Missing templateId' : undefined,
+                _id: !_id ? 'Missing template ID' : undefined,
                 recipientName: !recipientName ? 'Missing recipientName' : undefined,
                 senderName: !senderName ? 'Missing senderName' : undefined,
-                customizedHtml: !customizedHtml ? 'Missing customizedHtml' : undefined
+                htmlContent: !htmlContent ? 'Missing htmlContent' : undefined
             };
             
             console.log('[DEBUG] Validation failed - missing fields:', missingFields);
@@ -37,16 +37,16 @@ router.post('/', async (req, res) => {
         }
 
         // Get template
-        const template = await Template.findById(templateId);
+        const template = await Template.findById(_id);
         if (!template) {
-            console.log('[DEBUG] Template not found:', templateId);
+            console.log('[DEBUG] Template not found:', _id);
             return res.status(404).json({ error: 'Template not found' });
         }
         console.log('[DEBUG] Found template:', template._id);
 
         // Check if a wish with same template and names already exists
         const existingWish = await SharedWish.findOne({
-            templateId,
+            templateId: _id,
             recipientName: recipientName.trim(),
             senderName: senderName.trim()
         });
@@ -56,12 +56,12 @@ router.post('/', async (req, res) => {
 
         if (existingWish) {
             console.log('[DEBUG] Updating existing wish:', existingWish._id);
-            // Use existing wish but update customizedHtml
+            // Use existing wish but update htmlContent
             shortCode = existingWish.shortCode;
             sharedWish = existingWish;
             
-            // Update customizedHtml and timestamp
-            existingWish.customizedHtml = customizedHtml;
+            // Update htmlContent and timestamp
+            existingWish.htmlContent = htmlContent;
             existingWish.lastSharedAt = new Date();
             await existingWish.save();
             
@@ -80,10 +80,10 @@ router.post('/', async (req, res) => {
             // Create new shared wish
             sharedWish = new SharedWish({
                 shortCode,
-                templateId,
+                templateId: _id,
                 recipientName: recipientName.trim(),
                 senderName: senderName.trim(),
-                customizedHtml,
+                htmlContent,
                 createdAt: new Date(),
                 lastSharedAt: new Date()
             });
@@ -155,7 +155,7 @@ router.get('/:shortCode', async (req, res) => {
             templateId: wish.templateId,
             recipientName: wish.recipientName,
             senderName: wish.senderName,
-            customizedHtml: wish.customizedHtml,
+            htmlContent: wish.htmlContent,
             views: wish.views,
             createdAt: wish.createdAt,
             lastViewedAt: wish.lastViewedAt
