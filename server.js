@@ -12,6 +12,7 @@ const port = process.env.PORT || 3000;
 // Import routes
 const shareRoutes = require('./routes/share');
 const templateRoutes = require('./routes/templates');
+const categoryIconRoutes = require('./routes/categoryIcons');
 
 // Validate MongoDB URI
 if (!process.env.MONGODB_URI) {
@@ -59,6 +60,7 @@ app.use(validateRequest);
 // Mount routes BEFORE static files
 app.use('/api/templates', templateRoutes);
 app.use('/share', shareRoutes);
+app.use('/api/category-icons', categoryIconRoutes);
 
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'public')));
