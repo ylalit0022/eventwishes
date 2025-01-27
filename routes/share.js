@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const SharedWish = require('../models/sharedWish');
 const Template = require('../models/template');
 const shortid = require('shortid');
@@ -9,10 +10,10 @@ router.post('/', async (req, res) => {
     try {
         console.log('[DEBUG] Share request body:', JSON.stringify(req.body, null, 2));
         
-        const { _id, recipientName, senderName, htmlContent } = req.body;
+        const { templateId, recipientName, senderName, htmlContent } = req.body;
         
         console.log('[DEBUG] Extracted fields:', {
-            _id: _id || 'missing',
+            templateId: templateId || 'missing',
             recipientName: recipientName || 'missing',
             senderName: senderName || 'missing',
             htmlContent: htmlContent ? 'present' : 'missing',
@@ -20,9 +21,9 @@ router.post('/', async (req, res) => {
         });
 
         // Validate required fields
-        if (!_id || !recipientName || !senderName || !htmlContent) {
+        if (!templateId || !recipientName || !senderName || !htmlContent) {
             const missingFields = {
-                _id: !_id ? 'Missing template ID' : undefined,
+                templateId: !templateId ? 'Missing template ID' : undefined,
                 recipientName: !recipientName ? 'Missing recipientName' : undefined,
                 senderName: !senderName ? 'Missing senderName' : undefined,
                 htmlContent: !htmlContent ? 'Missing htmlContent' : undefined
@@ -32,21 +33,34 @@ router.post('/', async (req, res) => {
             
             return res.status(400).json({ 
                 error: 'Missing required fields',
-                details: missingFields
+                missingFields: Object.keys(missingFields).filter(key => missingFields[key]),
+                received: req.body
+            });
+        }
+
+        // Convert templateId to ObjectId
+        let objectId;
+        try {
+            objectId = new mongoose.Types.ObjectId(templateId);
+        } catch (err) {
+            console.log('[DEBUG] Invalid template ID format:', templateId);
+            return res.status(400).json({ 
+                error: 'Invalid template ID format',
+                details: err.message
             });
         }
 
         // Get template
-        const template = await Template.findById(_id);
+        const template = await Template.findById(objectId);
         if (!template) {
-            console.log('[DEBUG] Template not found:', _id);
+            console.log('[DEBUG] Template not found:', templateId);
             return res.status(404).json({ error: 'Template not found' });
         }
         console.log('[DEBUG] Found template:', template._id);
 
         // Check if a wish with same template and names already exists
         const existingWish = await SharedWish.findOne({
-            templateId: _id,
+            templateId: objectId,
             recipientName: recipientName.trim(),
             senderName: senderName.trim()
         });
@@ -79,11 +93,11 @@ router.post('/', async (req, res) => {
             
             // Create new shared wish
             sharedWish = new SharedWish({
-                shortCode,
-                templateId: _id,
+                templateId: objectId,
+                shortCode: shortCode,
                 recipientName: recipientName.trim(),
                 senderName: senderName.trim(),
-                htmlContent,
+                htmlContent: htmlContent,
                 createdAt: new Date(),
                 lastSharedAt: new Date()
             });
