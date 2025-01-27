@@ -65,90 +65,86 @@ router.post('/', async (req, res) => {
             senderName: senderName.trim()
         });
 
-        let shortCode;
-        let sharedWish;
-
         if (existingWish) {
-            console.log('[DEBUG] Updating existing wish:', existingWish._id);
-            // Use existing wish but update htmlContent
-            shortCode = existingWish.shortCode;
-            sharedWish = existingWish;
-            
-            // Update htmlContent and timestamp
-            existingWish.htmlContent = htmlContent;
-            existingWish.lastSharedAt = new Date();
-            await existingWish.save();
-            
-            console.log('[DEBUG] Updated existing wish:', shortCode);
-        } else {
-            // Generate unique short code
-            shortCode = shortid.generate();
-            
-            // Ensure shortCode is unique
-            while (await SharedWish.findOne({ shortCode })) {
-                shortCode = shortid.generate();
-            }
-
-            console.log('[DEBUG] Creating new wish with shortCode:', shortCode);
-            
-            // Create new shared wish
-            sharedWish = new SharedWish({
-                templateId: objectId,
-                shortCode: shortCode,
-                recipientName: recipientName.trim(),
-                senderName: senderName.trim(),
-                htmlContent: htmlContent,
-                createdAt: new Date(),
-                lastSharedAt: new Date()
+            console.log('[DEBUG] Found existing wish:', existingWish._id);
+            return res.json({
+                success: true,
+                data: {
+                    shortCode: existingWish.shortCode,
+                    shareUrl: process.env.BASE_URL + '/w/' + existingWish.shortCode,
+                    previewImageUrl: template.previewImageUrl
+                }
             });
-
-            await sharedWish.save();
-            console.log('[DEBUG] Created new wish:', sharedWish._id);
         }
 
-        // Generate share URL
-        const shareUrl = `${process.env.BASE_URL || 'https://eventwishes.onrender.com'}/wish/${shortCode}`;
-        console.log('[DEBUG] Generated share URL:', shareUrl);
+        // Generate short code
+        const shortCode = shortid.generate();
+        console.log('[DEBUG] Generated short code:', shortCode);
 
-        res.json({
-            shareUrl,
+        // Create new shared wish
+        const sharedWish = new SharedWish({
             shortCode,
-            message: 'Wish shared successfully',
-            isExisting: !!existingWish
+            templateId: objectId,
+            recipientName: recipientName.trim(),
+            senderName: senderName.trim(),
+            htmlContent: htmlContent
         });
+
+        console.log('[DEBUG] Creating new wish:', {
+            shortCode,
+            templateId: objectId,
+            recipientName: recipientName.trim(),
+            senderName: senderName.trim(),
+            htmlContentLength: htmlContent ? htmlContent.length : 0
+        });
+
+        await sharedWish.save();
+        console.log('[DEBUG] Saved new wish:', sharedWish._id);
+
+        // Return success response
+        return res.json({
+            success: true,
+            data: {
+                shortCode: shortCode,
+                shareUrl: process.env.BASE_URL + '/w/' + shortCode,
+                previewImageUrl: template.previewImageUrl
+            }
+        });
+
     } catch (error) {
         console.error('[ERROR] Share error:', error);
         console.error('[ERROR] Stack trace:', error.stack);
         
         // Better error handling
+        let errorMessage = 'Internal server error';
+        let statusCode = 500;
+        
         if (error.name === 'ValidationError') {
-            const details = Object.keys(error.errors).reduce((acc, key) => {
-                acc[key] = error.errors[key].message;
-                return acc;
-            }, {});
+            statusCode = 400;
+            errorMessage = 'Validation failed';
+            const errors = {};
             
-            console.log('[DEBUG] Validation error details:', details);
+            // Extract validation errors
+            for (let field in error.errors) {
+                errors[field] = error.errors[field].message;
+            }
             
-            return res.status(400).json({
-                error: 'Validation Error',
-                details
+            return res.status(statusCode).json({
+                error: errorMessage,
+                details: errors
             });
         }
         
-        res.status(500).json({ 
-            error: 'Failed to create share link',
-            message: error.message
-        });
+        return res.status(statusCode).json({ error: errorMessage });
     }
 });
 
-// Get shared wish by shortCode
+// Get shared wish by short code
 router.get('/:shortCode', async (req, res) => {
     try {
         const shortCode = req.params.shortCode;
         console.log('[DEBUG] Fetching wish with shortCode:', shortCode);
         
-        // Find the shared wish
         const wish = await SharedWish.findOne({ shortCode });
         if (!wish) {
             console.log('[DEBUG] Wish not found:', shortCode);
@@ -156,28 +152,14 @@ router.get('/:shortCode', async (req, res) => {
         }
 
         console.log('[DEBUG] Found wish:', wish._id);
-
-        // Update view count and last viewed time
-        wish.views = (wish.views || 0) + 1;
-        wish.lastViewedAt = new Date();
-        await wish.save();
-
-        // Return wish data
-        res.json({
-            id: wish._id,
-            shortCode: wish.shortCode,
-            templateId: wish.templateId,
-            recipientName: wish.recipientName,
-            senderName: wish.senderName,
-            htmlContent: wish.htmlContent,
-            views: wish.views,
-            createdAt: wish.createdAt,
-            lastViewedAt: wish.lastViewedAt
+        return res.json({
+            success: true,
+            data: wish
         });
+
     } catch (error) {
-        console.error('[ERROR] Error fetching shared wish:', error);
-        console.error('[ERROR] Stack trace:', error.stack);
-        res.status(500).json({ error: 'Failed to fetch shared wish' });
+        console.error('[ERROR] Wish fetch failed:', error);
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
