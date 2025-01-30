@@ -1,4 +1,4 @@
-const SharedWish = require('../models/SharedWish');
+const SharedWish = require('./SharedWish');
 const crypto = require('crypto');
 
 // Generate short code
