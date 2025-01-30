@@ -27,7 +27,7 @@ const sharedWishSchema = new mongoose.Schema({
     },
     customizedHtml: {  
         type: String,
-        required: false
+        required: true
     },
     createdAt: {
         type: Date,
