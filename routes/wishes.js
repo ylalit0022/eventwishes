@@ -3,7 +3,7 @@ const router = express.Router();
 const { 
     createSharedWish, 
     getSharedWish 
-} = require('../controllers/wishController');
+} = require('/wishController');
 
 // Create shared wish
 router.post('/create', createSharedWish);
