@@ -210,6 +210,34 @@ async function startServer() {
             }
         });
 
+        //for category wise fetch data
+        // Add this inside startServer()
+app.get('/api/templates/category/:category', async (req, res) => {
+    try {
+        const category = req.params.category;
+        const { page = 1, limit = 20 } = req.query;
+        const templates = await Template.find({ category })
+            .sort({ updatedAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        if (templates.length === 0) {
+            return res.status(404).json({ message: 'No templates found for this category' });
+        }
+
+        res.json({
+            data: templates,
+            page: parseInt(page),
+            totalPages: Math.ceil(templates.length / limit),
+            totalItems: templates.length
+        });
+    } catch (error) {
+        console.error('Error fetching templates by category:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
         // Share API endpoint
         app.post('/api/share', async (req, res) => {
             try {
