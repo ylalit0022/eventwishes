@@ -278,6 +278,14 @@ const startServer = async () => {
                 });
             }
         });
+//category api newWishevent
+ app.use('/api/categories', require('./routes/categories')); // Add categories route
+
+// Debug logging middleware
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+});
 
         // Get shared wish
         app.get('/api/wish/:shortCode', async (req, res) => {
