@@ -29,6 +29,19 @@ const sharedWishSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+        cssContent: {
+        type: String,
+        default: ''
+    },
+    jsContent: {
+        type: String,
+        default: ''
+    },
+    sharedVia: {
+        type: String,
+        enum: ['LINK', 'WHATSAPP', 'OTHER'],
+        default: 'LINK'
+    },
     createdAt: {
         type: Date,
         default: Date.now,
