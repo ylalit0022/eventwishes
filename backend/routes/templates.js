@@ -4,7 +4,7 @@ const {
     getTemplates, 
     getTemplatesByCategory, 
     getTemplateById 
-} = require('../controllers/templateController');
+} = require('./templateController');
 
 // Get all templates with pagination
 router.get('/', getTemplates);
