@@ -37,6 +37,10 @@ const sharedWishSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    previewUrl: {
+        type: String,
+        default: ''
+    },
     sharedVia: {
         type: String,
         enum: ['LINK', 'WHATSAPP', 'OTHER'],
