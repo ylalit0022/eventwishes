@@ -62,6 +62,7 @@ app.use(validateRequest);
 app.use('/api/templates', templateRoutes);
 app.use('/share', shareRoutes);
 app.use('/api/category-icons', categoryIconRoutes);
+app.use('/api/festivals', require('./routes/festivals'));
 
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'public')));
