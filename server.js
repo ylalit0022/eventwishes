@@ -65,25 +65,6 @@ app.use('/api/category-icons', categoryIconRoutes);
 app.use('/api/festivals', require('./routes/festivals'));
 app.use('/api/categoryIcons', require('./routes/categoryIcons'));
 
-/ JSON Response Formatting Middleware
-app.use((req, res, next) => {
-    const oldJson = res.json;
-    res.json = function(data) {
-        if (data && data.message && data.message.includes('Error')) {
-            return oldJson.call(this, {
-                success: false,
-                error: data.message,
-                data: null
-            });
-        }
-        return oldJson.call(this, {
-            success: true,
-            data: data,
-            error: null
-        });
-    };
-    next();
-});
 
 
 

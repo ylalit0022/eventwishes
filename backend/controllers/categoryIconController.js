@@ -4,9 +4,17 @@ const CategoryIcon = require('../models/CategoryIcon');
 exports.getAllCategoryIcons = async (req, res) => {
     try {
         const categoryIcons = await CategoryIcon.find();
-        res.status(200).json(categoryIcons);
+        res.status(200).json({
+            success: true,
+            data: categoryIcons,
+            message: 'Category icons retrieved successfully'
+        });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            message: 'Failed to retrieve category icons'
+        });
     }
 };
 
@@ -18,8 +26,16 @@ exports.createCategoryIcon = async (req, res) => {
             categoryIcon: req.body.categoryIcon
         });
         const newCategoryIcon = await categoryIcon.save();
-        res.status(201).json(newCategoryIcon);
+        res.status(201).json({
+            success: true,
+            data: newCategoryIcon,
+            message: 'Category icon created successfully'
+        });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(400).json({
+            success: false,
+            error: error.message,
+            message: 'Failed to create category icon'
+        });
     }
 };
