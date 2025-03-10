@@ -13,6 +13,8 @@ const port = process.env.PORT || 3000;
 const shareRoutes = require('./routes/share');
 const templateRoutes = require('./routes/templates');
 const categoryIconRoutes = require('./routes/categoryIcons'); 
+const adMobRoutes = require('./routes/adMobRoutes');
+
 
 
 // Validate MongoDB URI
@@ -64,6 +66,7 @@ app.use('/share', shareRoutes);
 app.use('/api/category-icons', categoryIconRoutes);
 app.use('/api/festivals', require('./routes/festivals'));
 app.use('/api/categoryIcons', require('./routes/categoryIcons'));
+apiRouter.use('/admob-ads', adMobRoutes);
 
 
 
@@ -350,6 +353,7 @@ app.get('/api/templates/category/:category', async (req, res) => {
         // Start server
         app.listen(port, () => {
             console.log(`Server is running on port ${port}`);
+            console.log('- /api/admob-ads');
             console.log(`App URL: ${process.env.APP_URL || `http://localhost:${port}`}`);
         });
 
