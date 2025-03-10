@@ -66,7 +66,7 @@ app.use('/share', shareRoutes);
 app.use('/api/category-icons', categoryIconRoutes);
 app.use('/api/festivals', require('./routes/festivals'));
 app.use('/api/categoryIcons', require('./routes/categoryIcons'));
-app.use('/admob-ads', adMobRoutes);
+apiRouter.use('/admob-ads', adMobRoutes);
 
 
 
