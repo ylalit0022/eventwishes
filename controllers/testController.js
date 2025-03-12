@@ -1,5 +1,4 @@
 const Festival = require('../models/Festival');
-const NotificationHelper = require('../utils/notificationHelper');
 
 /**
  * Get the current server time
