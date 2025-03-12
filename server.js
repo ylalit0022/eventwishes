@@ -14,6 +14,8 @@ const shareRoutes = require('./routes/share');
 const templateRoutes = require('./routes/templates');
 const categoryIconRoutes = require('./routes/categoryIcons'); 
 const adMobRoutes = require('./routes/adMobRoutes');
+// testRoutes
+const testRoutes = require('./routes/testRoutes');
 
 
 
@@ -67,6 +69,7 @@ app.use('/api/category-icons', categoryIconRoutes);
 app.use('/api/festivals', require('./routes/festivals'));
 app.use('/api/categoryIcons', require('./routes/categoryIcons'));
 app.use('/api/admob-ads', require('./routes/adMobRoutes'));
+app.use('/api/test', testRoutes); // Add test routes
 
 
 
