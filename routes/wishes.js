@@ -6,7 +6,7 @@ const {
     updateSharedWishPlatform,
     getWishAnalytics
 } = require('../controllers/wishController');
-const SharedWish = require('./models/SharedWish');
+const SharedWish = require('../models/SharedWish');
 
 // Create shared wish
 router.post('/create', createSharedWish);
