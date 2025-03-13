@@ -188,7 +188,51 @@ async function startServer() {
         };
 
         // Web page endpoint
-        app.get('/wish/:shortCode', (req, res) => serveWish(req, res, false));
+        app.get('/wish/:shortCode', async (req, res) => {
+            const { shortCode } = req.params;
+            
+            try {
+                // Try to fetch the wish details to show a preview
+                const SharedWish = require('./models/SharedWish');
+                const { generateWishLandingPage, generateFallbackLandingPage } = require('./views/wishLanding');
+                
+                const wish = await SharedWish.findOne({ shortCode }).populate('templateId');
+                
+                if (wish) {
+                    // Increment views
+                    wish.views += 1;
+                    
+                    // Track unique views by IP
+                    const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+                    if (clientIp && !wish.viewerIps.includes(clientIp)) {
+                        wish.viewerIps.push(clientIp);
+                        wish.uniqueViews += 1;
+                    }
+                    
+                    // Track referrer if available
+                    if (req.headers.referer && !wish.referrer) {
+                        wish.referrer = req.headers.referer;
+                    }
+                    
+                    // Track device info if available
+                    if (req.headers['user-agent'] && !wish.deviceInfo) {
+                        wish.deviceInfo = req.headers['user-agent'];
+                    }
+                    
+                    await wish.save();
+                }
+                
+                // Generate the landing page
+                const landingPage = generateWishLandingPage(wish, shortCode);
+                res.send(landingPage);
+            } catch (error) {
+                console.error('Error handling wish page:', error);
+                
+                // Fallback to basic page if there's an error
+                const fallbackPage = generateFallbackLandingPage(shortCode);
+                res.send(fallbackPage);
+            }
+        });
         
         // API endpoint
         app.get('/api/share/:shortCode', (req, res) => serveWish(req, res, true));

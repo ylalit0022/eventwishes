@@ -4,32 +4,26 @@ const sharedWishSchema = new mongoose.Schema({
     shortCode: {
         type: String,
         required: true,
-        unique: true,
-        index: true
+        unique: true
     },
     templateId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Template',
-        required: true,
-        index: true
+        required: true
     },
     recipientName: {
         type: String,
-        required: true,
-        trim: true,
-        index: true
+        required: true
     },
     senderName: {
         type: String,
-        required: true,
-        trim: true,
-        index: true
+        required: true
     },
-    customizedHtml: {  
+    customizedHtml: {
         type: String,
         required: true
     },
-        cssContent: {
+    cssContent: {
         type: String,
         default: ''
     },
@@ -37,37 +31,55 @@ const sharedWishSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
-    previewUrl: {
-        type: String,
-        default: ''
-    },
     sharedVia: {
         type: String,
-        enum: ['LINK', 'WHATSAPP', 'OTHER'],
+        enum: ['LINK', 'WHATSAPP', 'FACEBOOK', 'TWITTER', 'INSTAGRAM', 'EMAIL', 'SMS', 'OTHER'],
         default: 'LINK'
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now,
-        index: { expires: 7776000 } // 90 days in seconds
-    },
-    lastSharedAt: {
-        type: Date,
-        default: Date.now,
-        index: true
     },
     views: {
         type: Number,
         default: 0
     },
-    lastViewedAt: {
-        type: Date
+    uniqueViews: {
+        type: Number,
+        default: 0
+    },
+    viewerIps: {
+        type: [String],
+        default: []
+    },
+    shareCount: {
+        type: Number,
+        default: 0
+    },
+    shareHistory: [{
+        platform: {
+            type: String,
+            enum: ['LINK', 'WHATSAPP', 'FACEBOOK', 'TWITTER', 'INSTAGRAM', 'EMAIL', 'SMS', 'OTHER']
+        },
+        timestamp: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    lastSharedAt: {
+        type: Date,
+        default: Date.now
+    },
+    conversionSource: {
+        type: String,
+        default: null
+    },
+    referrer: {
+        type: String,
+        default: null
+    },
+    deviceInfo: {
+        type: String,
+        default: null
     }
 }, {
     timestamps: true
 });
 
-// Compound index for finding duplicate wishes
-sharedWishSchema.index({ templateId: 1, recipientName: 1, senderName: 1 });
-
-module.exports = mongoose.model('SharedWish', sharedWishSchema);
+module.exports = mongoose.model('SharedWish', sharedWishSchema, 'sharedwishes');
