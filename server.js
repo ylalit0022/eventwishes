@@ -70,6 +70,8 @@ app.use('/api/festivals', require('./routes/festivals'));
 app.use('/api/categoryIcons', require('./routes/categoryIcons'));
 app.use('/api/admob-ads', require('./routes/adMobRoutes'));
 app.use('/api/test', testRoutes); // Add test routes
+app.use('/api/images', require('./routes/images'));
+
 
 
 
