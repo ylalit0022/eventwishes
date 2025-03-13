@@ -6,10 +6,18 @@ const sharedWishSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
-    templateId: {
+    template: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Template',
         required: true
+    },
+    title: {
+        type: String,
+        default: 'EventWish Greeting'
+    },
+    description: {
+        type: String,
+        default: 'A special wish for you'
     },
     recipientName: {
         type: String,
@@ -21,7 +29,7 @@ const sharedWishSchema = new mongoose.Schema({
     },
     customizedHtml: {
         type: String,
-        required: true
+        default: ''
     },
     cssContent: {
         type: String,

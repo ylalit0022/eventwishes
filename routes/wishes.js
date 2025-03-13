@@ -108,4 +108,69 @@ router.post('/:shortCode/analytics/install', async (req, res) => {
     }
 });
 
+// Generate shareable wish content based on templateId
+router.get('/share/:templateId', async (req, res) => {
+    try {
+        const { templateId } = req.params;
+        const { title, description, senderName, recipientName } = req.query;
+        
+        // Fetch the template
+        const Template = require('../models/Template');
+        const template = await Template.findById(templateId);
+        
+        if (!template) {
+            return res.status(404).json({ message: 'Template not found' });
+        }
+        
+        // Generate a unique short code for this share
+        const shortCode = generateShortCode();
+        
+        // Create a shareable URL
+        const shareableUrl = `https://eventwishes.onrender.com/wish/${shortCode}`;
+        
+        // Create a temporary wish record to track this share
+        const SharedWish = require('../models/SharedWish');
+        const sharedWish = new SharedWish({
+            shortCode,
+            template: templateId,
+            title: title || 'EventWish Greeting',
+            description: description || `A special wish from ${senderName || 'Someone'} to ${recipientName || 'you'}`,
+            senderName: senderName || 'Someone',
+            recipientName: recipientName || 'you',
+            createdAt: new Date(),
+            views: 0,
+            uniqueViews: 0
+        });
+        
+        await sharedWish.save();
+        
+        // Return the shareable data
+        res.json({
+            success: true,
+            shareableUrl,
+            shortCode,
+            previewUrl: template.thumbnailUrl || '/images/default-preview.png',
+            title: sharedWish.title,
+            description: sharedWish.description,
+            deepLink: `eventwish://wish/${shortCode}`
+        });
+    } catch (error) {
+        console.error('Error generating shareable content:', error);
+        res.status(500).json({ message: 'Error generating shareable content', error: error.message });
+    }
+});
+
+// Helper function to generate a short code
+function generateShortCode() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const length = 8;
+    let result = '';
+    
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    
+    return result;
+}
+
 module.exports = router;

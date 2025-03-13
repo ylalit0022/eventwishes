@@ -65,12 +65,15 @@ app.use(validateRequest);
 // Mount routes BEFORE static files
 app.use('/api/templates', templateRoutes);
 app.use('/share', shareRoutes);
+app.use('/api/wishes', require('./routes/wishes'));
 app.use('/api/category-icons', categoryIconRoutes);
 app.use('/api/festivals', require('./routes/festivals'));
 app.use('/api/categoryIcons', require('./routes/categoryIcons'));
 app.use('/api/admob-ads', require('./routes/adMobRoutes'));
 app.use('/api/test', testRoutes); // Add test routes
+app.use('/api/test/time', require('./routes/timeRoutes'));
 app.use('/api/images', require('./routes/images'));
+
 
 
 
@@ -189,52 +192,49 @@ async function startServer() {
             }
         };
 
-        // Web page endpoint
-        app.get('/wish/:shortCode', async (req, res) => {
-            const { shortCode } = req.params;
+// Deep linking route for wishes
+app.get('/wish/:shortCode', async (req, res) => {
+    try {
+        const { shortCode } = req.params;
+        const SharedWish = require('./models/SharedWish');
+        const wish = await SharedWish.findOne({ shortCode }).populate('template');
+        
+        // Track analytics
+        if (wish) {
+            // Increment views
+            wish.views += 1;
             
-            try {
-                // Try to fetch the wish details to show a preview
-                const SharedWish = require('./models/SharedWish');
-                const { generateWishLandingPage, generateFallbackLandingPage } = require('./views/wishLanding');
-                
-                const wish = await SharedWish.findOne({ shortCode }).populate('templateId');
-                
-                if (wish) {
-                    // Increment views
-                    wish.views += 1;
-                    
-                    // Track unique views by IP
-                    const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-                    if (clientIp && !wish.viewerIps.includes(clientIp)) {
-                        wish.viewerIps.push(clientIp);
-                        wish.uniqueViews += 1;
-                    }
-                    
-                    // Track referrer if available
-                    if (req.headers.referer && !wish.referrer) {
-                        wish.referrer = req.headers.referer;
-                    }
-                    
-                    // Track device info if available
-                    if (req.headers['user-agent'] && !wish.deviceInfo) {
-                        wish.deviceInfo = req.headers['user-agent'];
-                    }
-                    
-                    await wish.save();
-                }
-                
-                // Generate the landing page
-                const landingPage = generateWishLandingPage(wish, shortCode);
-                res.send(landingPage);
-            } catch (error) {
-                console.error('Error handling wish page:', error);
-                
-                // Fallback to basic page if there's an error
-                const fallbackPage = generateFallbackLandingPage(shortCode);
-                res.send(fallbackPage);
+            // Track unique views by IP
+            const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+            if (clientIp && !wish.viewerIps.includes(clientIp)) {
+                wish.viewerIps.push(clientIp);
+                wish.uniqueViews += 1;
             }
-        });
+            
+            // Track referrer if available
+            if (req.headers.referer && !wish.referrer) {
+                wish.referrer = req.headers.referer;
+            }
+            
+            // Track device info if available
+            if (req.headers['user-agent'] && !wish.deviceInfo) {
+                wish.deviceInfo = req.headers['user-agent'];
+            }
+            
+            await wish.save();
+        }
+        
+        // Generate landing page HTML
+        const html = generateWishLandingPage(wish, shortCode);
+        
+        // Send the response
+        res.send(html);
+    } catch (error) {
+        console.error('Error generating landing page:', error);
+        const html = generateFallbackLandingPage(req.params.shortCode);
+        res.send(html);
+    }
+});
         
         // API endpoint
         app.get('/api/share/:shortCode', (req, res) => serveWish(req, res, true));
