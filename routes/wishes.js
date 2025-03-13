@@ -5,7 +5,7 @@ const {
     getSharedWish,
     updateSharedWishPlatform,
     getWishAnalytics
-} = require('./controllers/wishController');
+} = require('../controllers/wishController');
 const SharedWish = require('./models/SharedWish');
 
 // Create shared wish
